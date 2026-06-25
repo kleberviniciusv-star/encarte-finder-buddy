@@ -28,6 +28,7 @@ export type ComparisonRow = {
   bestMarketSlug: string | null;
   bestPrice: number | null;
   worstPrice: number | null;
+  marketCount: number;
 };
 
 export async function fetchMarkets(): Promise<Market[]> {
@@ -58,6 +59,7 @@ export function buildComparison(markets: Market[], products: FlyerProduct[]): Co
         bestMarketSlug: null,
         bestPrice: null,
         worstPrice: null,
+        marketCount: 0,
       };
       byKey.set(p.product_key, row);
     }
@@ -65,16 +67,22 @@ export function buildComparison(markets: Market[], products: FlyerProduct[]): Co
   }
   for (const row of byKey.values()) {
     const entries = Object.entries(row.prices).filter(([, v]) => v !== null) as [string, number][];
+    row.marketCount = entries.length;
     if (!entries.length) continue;
     entries.sort((a, b) => a[1] - b[1]);
     row.bestMarketSlug = entries[0][0];
     row.bestPrice = entries[0][1];
     row.worstPrice = entries[entries.length - 1][1];
   }
-  return Array.from(byKey.values()).sort((a, b) =>
-    a.category.localeCompare(b.category) || a.name.localeCompare(b.name)
-  );
+  return Array.from(byKey.values()).sort((a, b) => {
+    const aCompared = a.marketCount >= 2 ? 1 : 0;
+    const bCompared = b.marketCount >= 2 ? 1 : 0;
+    if (aCompared !== bCompared) return bCompared - aCompared;
+    if (a.marketCount !== b.marketCount) return b.marketCount - a.marketCount;
+    return a.category.localeCompare(b.category) || a.name.localeCompare(b.name);
+  });
 }
+
 
 export const brl = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
