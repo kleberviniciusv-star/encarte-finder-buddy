@@ -14,7 +14,107 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      flyer_products: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          image_url: string | null
+          market_id: string
+          name: string
+          price: number
+          product_key: string
+          unit: string | null
+          valid_until: string | null
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          market_id: string
+          name: string
+          price: number
+          product_key: string
+          unit?: string | null
+          valid_until?: string | null
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          image_url?: string | null
+          market_id?: string
+          name?: string
+          price?: number
+          product_key?: string
+          unit?: string | null
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "flyer_products_market_id_fkey"
+            columns: ["market_id"]
+            isOneToOne: false
+            referencedRelation: "markets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      markets: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          logo_color: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          logo_color?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          logo_color?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      shopping_list_items: {
+        Row: {
+          created_at: string
+          id: string
+          product_key: string
+          product_name: string
+          quantity: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_key: string
+          product_name: string
+          quantity?: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_key?: string
+          product_name?: string
+          quantity?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
