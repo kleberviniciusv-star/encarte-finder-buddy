@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { Search, TrendingDown, Sparkles, Plus, Check } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -117,15 +117,31 @@ function Index() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((row) => (
-                  <Row key={row.product_key} row={row} markets={markets} />
-                ))}
+                {filtered.map((row, i) => {
+                  const prev = filtered[i - 1];
+                  const showDivider =
+                    row.marketCount < 2 && (!prev || prev.marketCount >= 2);
+                  return (
+                    <Fragment key={row.product_key}>
+                      {showDivider && (
+                        <tr className="bg-muted/40">
+                          <td colSpan={markets.length + 3} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Outros produtos dos encartes (sem comparação)
+                          </td>
+                        </tr>
+                      )}
+                      <Row row={row} markets={markets} />
+                    </Fragment>
+                  );
+                })}
+
                 {!filtered.length && (
                   <tr><td colSpan={markets.length + 3} className="px-4 py-12 text-center text-muted-foreground">
                     {productsQ.isLoading ? "Carregando encartes…" : "Nenhum produto encontrado."}
                   </td></tr>
                 )}
               </tbody>
+
             </table>
           </div>
         </div>
