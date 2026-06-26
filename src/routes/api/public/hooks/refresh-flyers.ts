@@ -39,7 +39,7 @@ async function listFlyerImages(market: { slug: string; flyer_url: string }): Pro
   const html = await res.text();
 
   const found = new Set<string>();
-  const re = /(?:src|data-src|href)=["']([^"']+\.(?:jpe?g|png|webp))["']/gi;
+  const re = /(?:src|data-src|href)=["']([^"']+\.(?:jpe?g|png|webp))(?:\?[^"']*)?["']/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
     const url = absoluteUrl(m[1], market.flyer_url);
