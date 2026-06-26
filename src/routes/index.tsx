@@ -30,6 +30,8 @@ export const Route = createFileRoute("/")({
 function Index() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
 
   const marketsQ = useQuery({ queryKey: ["markets"], queryFn: fetchMarkets });
   const productsQ = useQuery({ queryKey: ["flyer_products"], queryFn: fetchFlyerProducts });
