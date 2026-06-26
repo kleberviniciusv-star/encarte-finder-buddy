@@ -54,14 +54,53 @@ function Index() {
     0
   );
 
+  const lastSyncedAt = useMemo(() => {
+    const dates = markets
+      .map((m) => m.last_synced_at)
+      .filter((d): d is string => !!d)
+      .map((d) => new Date(d).getTime());
+    return dates.length ? new Date(Math.max(...dates)) : null;
+  }, [markets]);
+
+  const refresh = async () => {
+    setRefreshing(true);
+    toast.info("Lendo os encartes com IA… isso leva ~1 minuto.");
+    try {
+      const res = await fetch("/api/public/hooks/refresh-flyers", { method: "POST" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "Falha");
+      const total = (data.results ?? []).reduce(
+        (a: number, r: { products?: number }) => a + (r.products ?? 0),
+        0,
+      );
+      toast.success(`${total} produtos atualizados dos encartes.`);
+      await queryClient.invalidateQueries({ queryKey: ["markets"] });
+      await queryClient.invalidateQueries({ queryKey: ["flyer_products"] });
+    } catch (err) {
+      toast.error("Não foi possível atualizar os encartes agora.");
+      console.error(err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   return (
     <div>
       {/* Hero */}
       <section className="relative overflow-hidden border-b bg-gradient-to-br from-accent/40 via-background to-secondary/40">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
-          <Badge className="mb-4 gap-1 bg-success/15 text-success hover:bg-success/15">
-            <Sparkles className="h-3 w-3" /> Atualizado hoje
-          </Badge>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <Badge className="gap-1 bg-success/15 text-success hover:bg-success/15">
+              <Sparkles className="h-3 w-3" />
+              {lastSyncedAt
+                ? `Atualizado ${lastSyncedAt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`
+                : "Aguardando primeira sincronização"}
+            </Badge>
+            <Button size="sm" variant="outline" onClick={refresh} disabled={refreshing} className="gap-1.5">
+              <RefreshCw className={"h-3.5 w-3.5 " + (refreshing ? "animate-spin" : "")} />
+              {refreshing ? "Atualizando…" : "Atualizar agora"}
+            </Button>
+          </div>
           <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
             Os encartes de Saquarema,<br />
             <span className="text-primary">comparados lado a lado.</span>
