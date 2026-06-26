@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedListaRouteImport } from './routes/_authenticated/lista'
+import { Route as ApiPublicHooksRefreshFlyersRouteImport } from './routes/api/public/hooks/refresh-flyers'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -33,16 +34,24 @@ const AuthenticatedListaRoute = AuthenticatedListaRouteImport.update({
   path: '/lista',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ApiPublicHooksRefreshFlyersRoute =
+  ApiPublicHooksRefreshFlyersRouteImport.update({
+    id: '/api/public/hooks/refresh-flyers',
+    path: '/api/public/hooks/refresh-flyers',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/lista': typeof AuthenticatedListaRoute
+  '/api/public/hooks/refresh-flyers': typeof ApiPublicHooksRefreshFlyersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/lista': typeof AuthenticatedListaRoute
+  '/api/public/hooks/refresh-flyers': typeof ApiPublicHooksRefreshFlyersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -50,19 +59,27 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/lista': typeof AuthenticatedListaRoute
+  '/api/public/hooks/refresh-flyers': typeof ApiPublicHooksRefreshFlyersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/lista'
+  fullPaths: '/' | '/auth' | '/lista' | '/api/public/hooks/refresh-flyers'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/lista'
-  id: '__root__' | '/' | '/_authenticated' | '/auth' | '/_authenticated/lista'
+  to: '/' | '/auth' | '/lista' | '/api/public/hooks/refresh-flyers'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/lista'
+    | '/api/public/hooks/refresh-flyers'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ApiPublicHooksRefreshFlyersRoute: typeof ApiPublicHooksRefreshFlyersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -95,6 +112,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedListaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/public/hooks/refresh-flyers': {
+      id: '/api/public/hooks/refresh-flyers'
+      path: '/api/public/hooks/refresh-flyers'
+      fullPath: '/api/public/hooks/refresh-flyers'
+      preLoaderRoute: typeof ApiPublicHooksRefreshFlyersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -113,6 +137,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ApiPublicHooksRefreshFlyersRoute: ApiPublicHooksRefreshFlyersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

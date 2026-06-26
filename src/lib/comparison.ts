@@ -6,6 +6,8 @@ export type Market = {
   name: string;
   logo_color: string;
   address: string | null;
+  flyer_url?: string | null;
+  last_synced_at?: string | null;
 };
 
 export type FlyerProduct = {

@@ -65,7 +65,9 @@ export type Database = {
         Row: {
           address: string | null
           created_at: string
+          flyer_url: string | null
           id: string
+          last_synced_at: string | null
           logo_color: string
           name: string
           slug: string
@@ -73,7 +75,9 @@ export type Database = {
         Insert: {
           address?: string | null
           created_at?: string
+          flyer_url?: string | null
           id?: string
+          last_synced_at?: string | null
           logo_color?: string
           name: string
           slug: string
@@ -81,7 +85,9 @@ export type Database = {
         Update: {
           address?: string | null
           created_at?: string
+          flyer_url?: string | null
           id?: string
+          last_synced_at?: string | null
           logo_color?: string
           name?: string
           slug?: string
