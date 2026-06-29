@@ -215,6 +215,8 @@ function Index() {
                   ))}
                   <th className="px-4 py-3 text-right">Melhor</th>
                   <th className="px-4 py-3" />
+                  {isAdmin && <th className="px-4 py-3" />}
+
                 </tr>
               </thead>
               <tbody>
