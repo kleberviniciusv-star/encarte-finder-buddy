@@ -376,6 +376,19 @@ function Row({
           {added ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
         </Button>
       </td>
+      {isAdmin && (
+        <td className="px-4 py-3 text-right">
+          <Button
+            size="sm"
+            variant={mergeSourceKey === row.product_key ? "default" : "ghost"}
+            title={mergeSourceKey ? "Unir este item ao selecionado" : "Selecionar para unir duplicado"}
+            onClick={() => onMerge(row)}
+          >
+            <Link2 className="h-4 w-4" />
+          </Button>
+        </td>
+      )}
+
     </tr>
   );
 }
