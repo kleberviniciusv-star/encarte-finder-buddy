@@ -228,21 +228,28 @@ function Index() {
                     <Fragment key={row.product_key}>
                       {showDivider && (
                         <tr className="bg-muted/40">
-                          <td colSpan={markets.length + 3} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Outros produtos dos encartes (sem comparação)
                           </td>
                         </tr>
                       )}
-                      <Row row={row} markets={markets} />
+                      <Row
+                        row={row}
+                        markets={markets}
+                        isAdmin={isAdmin}
+                        mergeSourceKey={mergeSource?.product_key ?? null}
+                        onMerge={onMergeClick}
+                      />
                     </Fragment>
                   );
                 })}
 
                 {!filtered.length && (
-                  <tr><td colSpan={markets.length + 3} className="px-4 py-12 text-center text-muted-foreground">
+                  <tr><td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-12 text-center text-muted-foreground">
                     {productsQ.isLoading ? "Carregando encartes…" : "Nenhum produto encontrado."}
                   </td></tr>
                 )}
+
               </tbody>
 
             </table>
