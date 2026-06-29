@@ -32,10 +32,31 @@ function Index() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [mergeSource, setMergeSource] = useState<ComparisonRow | null>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) { if (alive) setIsAdmin(false); return; }
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", sess.session.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (alive) setIsAdmin(!!data);
+    };
+    check();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => check());
+    return () => { alive = false; sub.subscription.unsubscribe(); };
+  }, []);
 
   const marketsQ = useQuery({ queryKey: ["markets"], queryFn: fetchMarkets });
   const productsQ = useQuery({ queryKey: ["flyer_products"], queryFn: fetchFlyerProducts });
+
 
   const markets = marketsQ.data ?? [];
   const rows = useMemo(
