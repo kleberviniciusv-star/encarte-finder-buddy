@@ -297,7 +297,20 @@ function CategoryPill({ active, onClick, children }: { active: boolean; onClick:
   );
 }
 
-function Row({ row, markets }: { row: ComparisonRow; markets: Market[] }) {
+function Row({
+  row,
+  markets,
+  isAdmin,
+  mergeSourceKey,
+  onMerge,
+}: {
+  row: ComparisonRow;
+  markets: Market[];
+  isAdmin: boolean;
+  mergeSourceKey: string | null;
+  onMerge: (row: ComparisonRow) => void;
+}) {
+
   const [added, setAdded] = useState(false);
   const addToList = async () => {
     const { data: sess } = await supabase.auth.getSession();
