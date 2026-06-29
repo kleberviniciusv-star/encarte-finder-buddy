@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useMemo, useState } from "react";
-import { Search, TrendingDown, Sparkles, Plus, Check, RefreshCw } from "lucide-react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Search, TrendingDown, Sparkles, Plus, Check, RefreshCw, Link2, X } from "lucide-react";
+
 
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
