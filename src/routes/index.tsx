@@ -106,8 +106,46 @@ function Index() {
     }
   };
 
+  const onMergeClick = async (row: ComparisonRow) => {
+    if (!mergeSource) {
+      setMergeSource(row);
+      toast.info(`Selecione o item duplicado a unir com "${row.name}".`);
+      return;
+    }
+    if (mergeSource.product_key === row.product_key) {
+      setMergeSource(null);
+      return;
+    }
+    // Keep mergeSource as the canonical (target); rewrite row -> mergeSource
+    const { error } = await supabase.rpc("admin_merge_products", {
+      _source_key: row.product_key,
+      _target_key: mergeSource.product_key,
+    });
+    if (error) {
+      toast.error("Falha ao unir: " + error.message);
+    } else {
+      toast.success(`"${row.name}" unido a "${mergeSource.name}".`);
+      setMergeSource(null);
+      await queryClient.invalidateQueries({ queryKey: ["flyer_products"] });
+    }
+  };
+
   return (
     <div>
+      {isAdmin && mergeSource && (
+        <div className="sticky top-0 z-20 border-b bg-primary/10 px-4 py-2 text-sm">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+            <span>
+              Modo unir: clique no <Link2 className="inline h-3.5 w-3.5" /> de outro item para
+              unificá-lo a <strong>"{mergeSource.name}"</strong>.
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => setMergeSource(null)}>
+              <X className="h-4 w-4" /> Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <section className="relative overflow-hidden border-b bg-gradient-to-br from-accent/40 via-background to-secondary/40">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
