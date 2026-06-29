@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useMemo, useState } from "react";
-import { Search, TrendingDown, Sparkles, Plus, Check, RefreshCw } from "lucide-react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Search, TrendingDown, Sparkles, Plus, Check, RefreshCw, Link2, X } from "lucide-react";
+
 
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
@@ -31,10 +32,31 @@ function Index() {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [mergeSource, setMergeSource] = useState<ComparisonRow | null>(null);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    let alive = true;
+    const check = async () => {
+      const { data: sess } = await supabase.auth.getSession();
+      if (!sess.session) { if (alive) setIsAdmin(false); return; }
+      const { data } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", sess.session.user.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (alive) setIsAdmin(!!data);
+    };
+    check();
+    const { data: sub } = supabase.auth.onAuthStateChange(() => check());
+    return () => { alive = false; sub.subscription.unsubscribe(); };
+  }, []);
 
   const marketsQ = useQuery({ queryKey: ["markets"], queryFn: fetchMarkets });
   const productsQ = useQuery({ queryKey: ["flyer_products"], queryFn: fetchFlyerProducts });
+
 
   const markets = marketsQ.data ?? [];
   const rows = useMemo(
@@ -84,8 +106,46 @@ function Index() {
     }
   };
 
+  const onMergeClick = async (row: ComparisonRow) => {
+    if (!mergeSource) {
+      setMergeSource(row);
+      toast.info(`Selecione o item duplicado a unir com "${row.name}".`);
+      return;
+    }
+    if (mergeSource.product_key === row.product_key) {
+      setMergeSource(null);
+      return;
+    }
+    // Keep mergeSource as the canonical (target); rewrite row -> mergeSource
+    const { error } = await supabase.rpc("admin_merge_products", {
+      _source_key: row.product_key,
+      _target_key: mergeSource.product_key,
+    });
+    if (error) {
+      toast.error("Falha ao unir: " + error.message);
+    } else {
+      toast.success(`"${row.name}" unido a "${mergeSource.name}".`);
+      setMergeSource(null);
+      await queryClient.invalidateQueries({ queryKey: ["flyer_products"] });
+    }
+  };
+
   return (
     <div>
+      {isAdmin && mergeSource && (
+        <div className="sticky top-0 z-20 border-b bg-primary/10 px-4 py-2 text-sm">
+          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
+            <span>
+              Modo unir: clique no <Link2 className="inline h-3.5 w-3.5" /> de outro item para
+              unificá-lo a <strong>"{mergeSource.name}"</strong>.
+            </span>
+            <Button size="sm" variant="ghost" onClick={() => setMergeSource(null)}>
+              <X className="h-4 w-4" /> Cancelar
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <section className="relative overflow-hidden border-b bg-gradient-to-br from-accent/40 via-background to-secondary/40">
         <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
@@ -155,6 +215,8 @@ function Index() {
                   ))}
                   <th className="px-4 py-3 text-right">Melhor</th>
                   <th className="px-4 py-3" />
+                  {isAdmin && <th className="px-4 py-3" />}
+
                 </tr>
               </thead>
               <tbody>
@@ -166,21 +228,28 @@ function Index() {
                     <Fragment key={row.product_key}>
                       {showDivider && (
                         <tr className="bg-muted/40">
-                          <td colSpan={markets.length + 3} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          <td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                             Outros produtos dos encartes (sem comparação)
                           </td>
                         </tr>
                       )}
-                      <Row row={row} markets={markets} />
+                      <Row
+                        row={row}
+                        markets={markets}
+                        isAdmin={isAdmin}
+                        mergeSourceKey={mergeSource?.product_key ?? null}
+                        onMerge={onMergeClick}
+                      />
                     </Fragment>
                   );
                 })}
 
                 {!filtered.length && (
-                  <tr><td colSpan={markets.length + 3} className="px-4 py-12 text-center text-muted-foreground">
+                  <tr><td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-12 text-center text-muted-foreground">
                     {productsQ.isLoading ? "Carregando encartes…" : "Nenhum produto encontrado."}
                   </td></tr>
                 )}
+
               </tbody>
 
             </table>
@@ -228,7 +297,20 @@ function CategoryPill({ active, onClick, children }: { active: boolean; onClick:
   );
 }
 
-function Row({ row, markets }: { row: ComparisonRow; markets: Market[] }) {
+function Row({
+  row,
+  markets,
+  isAdmin,
+  mergeSourceKey,
+  onMerge,
+}: {
+  row: ComparisonRow;
+  markets: Market[];
+  isAdmin: boolean;
+  mergeSourceKey: string | null;
+  onMerge: (row: ComparisonRow) => void;
+}) {
+
   const [added, setAdded] = useState(false);
   const addToList = async () => {
     const { data: sess } = await supabase.auth.getSession();
@@ -294,6 +376,19 @@ function Row({ row, markets }: { row: ComparisonRow; markets: Market[] }) {
           {added ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
         </Button>
       </td>
+      {isAdmin && (
+        <td className="px-4 py-3 text-right">
+          <Button
+            size="sm"
+            variant={mergeSourceKey === row.product_key ? "default" : "ghost"}
+            title={mergeSourceKey ? "Unir este item ao selecionado" : "Selecionar para unir duplicado"}
+            onClick={() => onMerge(row)}
+          >
+            <Link2 className="h-4 w-4" />
+          </Button>
+        </td>
+      )}
+
     </tr>
   );
 }
