@@ -13,6 +13,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedListaRouteImport } from './routes/_authenticated/lista'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as ApiPublicHooksRefreshFlyersRouteImport } from './routes/api/public/hooks/refresh-flyers'
 
 const AuthRoute = AuthRouteImport.update({
@@ -34,6 +35,11 @@ const AuthenticatedListaRoute = AuthenticatedListaRouteImport.update({
   path: '/lista',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const ApiPublicHooksRefreshFlyersRoute =
   ApiPublicHooksRefreshFlyersRouteImport.update({
     id: '/api/public/hooks/refresh-flyers',
@@ -44,12 +50,14 @@ const ApiPublicHooksRefreshFlyersRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/lista': typeof AuthenticatedListaRoute
   '/api/public/hooks/refresh-flyers': typeof ApiPublicHooksRefreshFlyersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/lista': typeof AuthenticatedListaRoute
   '/api/public/hooks/refresh-flyers': typeof ApiPublicHooksRefreshFlyersRoute
 }
@@ -58,19 +66,26 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/lista': typeof AuthenticatedListaRoute
   '/api/public/hooks/refresh-flyers': typeof ApiPublicHooksRefreshFlyersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/lista' | '/api/public/hooks/refresh-flyers'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/lista'
+    | '/api/public/hooks/refresh-flyers'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/lista' | '/api/public/hooks/refresh-flyers'
+  to: '/' | '/auth' | '/admin' | '/lista' | '/api/public/hooks/refresh-flyers'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/admin'
     | '/_authenticated/lista'
     | '/api/public/hooks/refresh-flyers'
   fileRoutesById: FileRoutesById
@@ -112,6 +127,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedListaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/api/public/hooks/refresh-flyers': {
       id: '/api/public/hooks/refresh-flyers'
       path: '/api/public/hooks/refresh-flyers'
@@ -123,10 +145,12 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedListaRoute: typeof AuthenticatedListaRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedListaRoute: AuthenticatedListaRoute,
 }
 
