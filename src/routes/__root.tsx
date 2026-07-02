@@ -8,7 +8,7 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
-import { ShoppingCart, LogOut, User as UserIcon } from "lucide-react";
+import { ShoppingCart, LogOut, User as UserIcon, ShieldCheck, Menu, X } from "lucide-react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -77,14 +77,30 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function Header() {
   const [email, setEmail] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setEmail(data.session?.user.email ?? null));
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user ?? null;
+      setEmail(user?.email ?? null);
+      if (user) {
+        const { data: role } = await supabase
+          .from("user_roles").select("role")
+          .eq("user_id", user.id).eq("role", "admin").maybeSingle();
+        setIsAdmin(!!role);
+      } else {
+        setIsAdmin(false);
+      }
+    };
+    checkSession();
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+      if (["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED"].includes(event)) {
         setEmail(session?.user.email ?? null);
         router.invalidate();
+        checkSession();
       }
     });
     return () => sub.subscription.unsubscribe();
@@ -92,37 +108,105 @@ function Header() {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    setMenuOpen(false);
     router.navigate({ to: "/" });
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-        <Link to="/" className="flex items-center gap-2 font-extrabold text-lg">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2 font-extrabold text-lg" onClick={() => setMenuOpen(false)}>
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-primary text-primary-foreground shrink-0">
             <ShoppingCart className="h-5 w-5" />
           </span>
           <span>EncarteSaqua</span>
         </Link>
-        <nav className="flex items-center gap-2">
-          <Link to="/" className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-semibold text-foreground" }}>
+
+        {/* Desktop nav */}
+        <nav className="hidden sm:flex items-center gap-1">
+          <Link to="/" className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted" activeProps={{ className: "px-3 py-2 text-sm font-semibold text-foreground rounded-lg bg-muted" }}>
             Comparar
           </Link>
+          {email && (
+            <Link to="/lista" className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted" activeProps={{ className: "px-3 py-2 text-sm font-semibold text-foreground rounded-lg bg-muted" }}>
+              Minha lista
+            </Link>
+          )}
+          {isAdmin && (
+            <Link to="/admin" className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-amber-600 hover:text-amber-700 rounded-lg hover:bg-amber-50" activeProps={{ className: "flex items-center gap-1 px-3 py-2 text-sm font-semibold text-amber-700 rounded-lg bg-amber-50" }}>
+              <ShieldCheck className="h-3.5 w-3.5" /> Admin
+            </Link>
+          )}
           {email ? (
             <>
-              <Link to="/lista" className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground" activeProps={{ className: "px-3 py-2 text-sm font-semibold text-foreground" }}>
-                Minha lista
-              </Link>
-              <div className="hidden items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-xs sm:flex">
-                <UserIcon className="h-3.5 w-3.5" /> {email}
+              <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-1.5 text-xs ml-1">
+                <UserIcon className="h-3.5 w-3.5 shrink-0" />
+                <span className="max-w-[120px] truncate">{email}</span>
               </div>
-              <Button variant="ghost" size="sm" onClick={signOut}><LogOut className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={signOut} className="ml-1"><LogOut className="h-4 w-4" /></Button>
             </>
           ) : (
-            <Button asChild size="sm"><Link to="/auth">Entrar</Link></Button>
+            <Button asChild size="sm" className="ml-1"><Link to="/auth">Entrar</Link></Button>
           )}
         </nav>
+
+        {/* Mobile: ações rápidas + hamburguer */}
+        <div className="flex items-center gap-2 sm:hidden">
+          {email && (
+            <Link to="/lista" className="grid h-9 w-9 place-items-center rounded-xl border bg-card text-muted-foreground hover:text-foreground">
+              <ShoppingCart className="h-4 w-4" />
+            </Link>
+          )}
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="grid h-9 w-9 place-items-center rounded-xl border bg-card text-muted-foreground"
+            aria-label="Menu"
+          >
+            {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
+        </div>
       </div>
+
+      {/* Mobile dropdown */}
+      {menuOpen && (
+        <div className="border-t bg-background px-4 pb-4 pt-2 sm:hidden">
+          <div className="flex flex-col gap-1">
+            <Link to="/" onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-muted"
+              activeProps={{ className: "flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-foreground bg-muted" }}>
+              Comparar preços
+            </Link>
+            {email && (
+              <Link to="/lista" onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-muted"
+                activeProps={{ className: "flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-foreground bg-muted" }}>
+                Minha lista de compras
+              </Link>
+            )}
+            {isAdmin && (
+              <Link to="/admin" onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-amber-600 hover:bg-amber-50">
+                <ShieldCheck className="h-4 w-4" /> Painel Admin
+              </Link>
+            )}
+            <div className="my-2 border-t" />
+            {email ? (
+              <div className="flex items-center justify-between rounded-xl px-3 py-3 bg-muted/60">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground min-w-0">
+                  <UserIcon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{email}</span>
+                </div>
+                <Button variant="ghost" size="sm" onClick={signOut} className="text-destructive hover:text-destructive shrink-0 ml-2">
+                  <LogOut className="h-4 w-4 mr-1" /> Sair
+                </Button>
+              </div>
+            ) : (
+              <Button asChild className="w-full"><Link to="/auth" onClick={() => setMenuOpen(false)}>Entrar / Criar conta</Link></Button>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }
@@ -134,7 +218,7 @@ function RootComponent() {
       <div className="min-h-screen flex flex-col">
         <Header />
         <main className="flex-1"><Outlet /></main>
-        <footer className="border-t py-6 text-center text-xs text-muted-foreground">
+        <footer className="border-t py-5 text-center text-xs text-muted-foreground">
           Encartes atualizados diariamente • Saquarema, RJ
         </footer>
       </div>

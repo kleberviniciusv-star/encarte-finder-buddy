@@ -1,14 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Search, TrendingDown, Sparkles, Plus, Check, RefreshCw, Link2, X } from "lucide-react";
-
+import { Search, TrendingDown, Sparkles, Plus, Check, RefreshCw, X, Merge, Link2, ChevronDown, ChevronUp } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   buildComparison,
   fetchFlyerProducts,
@@ -33,7 +39,9 @@ function Index() {
   const [category, setCategory] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [mergeSource, setMergeSource] = useState<ComparisonRow | null>(null);
+  const [mergeTarget, setMergeTarget] = useState<ComparisonRow | null>(null);
+  const [mergeSearch, setMergeSearch] = useState("");
+  const [merging, setMerging] = useState(false);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -41,12 +49,8 @@ function Index() {
     const check = async () => {
       const { data: sess } = await supabase.auth.getSession();
       if (!sess.session) { if (alive) setIsAdmin(false); return; }
-      const { data } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", sess.session.user.id)
-        .eq("role", "admin")
-        .maybeSingle();
+      const { data } = await supabase.from("user_roles").select("role")
+        .eq("user_id", sess.session.user.id).eq("role", "admin").maybeSingle();
       if (alive) setIsAdmin(!!data);
     };
     check();
@@ -57,7 +61,6 @@ function Index() {
   const marketsQ = useQuery({ queryKey: ["markets"], queryFn: fetchMarkets });
   const productsQ = useQuery({ queryKey: ["flyer_products"], queryFn: fetchFlyerProducts });
 
-
   const markets = marketsQ.data ?? [];
   const rows = useMemo(
     () => (markets.length && productsQ.data ? buildComparison(markets, productsQ.data) : []),
@@ -66,21 +69,13 @@ function Index() {
 
   const categories = useMemo(() => Array.from(new Set(rows.map((r) => r.category))), [rows]);
   const filtered = rows.filter(
-    (r) =>
-      (!category || r.category === category) &&
-      r.name.toLowerCase().includes(search.toLowerCase())
+    (r) => (!category || r.category === category) && r.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalSavings = rows.reduce(
-    (acc, r) => acc + ((r.worstPrice ?? 0) - (r.bestPrice ?? 0)),
-    0
-  );
+  const totalSavings = rows.reduce((acc, r) => acc + ((r.worstPrice ?? 0) - (r.bestPrice ?? 0)), 0);
 
   const lastSyncedAt = useMemo(() => {
-    const dates = markets
-      .map((m) => m.last_synced_at)
-      .filter((d): d is string => !!d)
-      .map((d) => new Date(d).getTime());
+    const dates = markets.map((m) => m.last_synced_at).filter((d): d is string => !!d).map((d) => new Date(d).getTime());
     return dates.length ? new Date(Math.max(...dates)) : null;
   }, [markets]);
 
@@ -91,10 +86,7 @@ function Index() {
       const res = await fetch("/api/public/hooks/refresh-flyers", { method: "POST" });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Falha");
-      const total = (data.results ?? []).reduce(
-        (a: number, r: { products?: number }) => a + (r.products ?? 0),
-        0,
-      );
+      const total = (data.results ?? []).reduce((a: number, r: { products?: number }) => a + (r.products ?? 0), 0);
       toast.success(`${total} produtos atualizados dos encartes.`);
       await queryClient.invalidateQueries({ queryKey: ["markets"] });
       await queryClient.invalidateQueries({ queryKey: ["flyer_products"] });
@@ -106,105 +98,151 @@ function Index() {
     }
   };
 
-  const onMergeClick = async (row: ComparisonRow) => {
-    if (!mergeSource) {
-      setMergeSource(row);
-      toast.info(`Selecione o item duplicado a unir com "${row.name}".`);
-      return;
-    }
-    if (mergeSource.product_key === row.product_key) {
-      setMergeSource(null);
-      return;
-    }
-    // Keep mergeSource as the canonical (target); rewrite row -> mergeSource
-    const { error } = await supabase.rpc("admin_merge_products", {
-      _source_key: row.product_key,
-      _target_key: mergeSource.product_key,
-    });
-    if (error) {
-      toast.error("Falha ao unir: " + error.message);
-    } else {
-      toast.success(`"${row.name}" unido a "${mergeSource.name}".`);
-      setMergeSource(null);
+  const openMergeModal = (row: ComparisonRow) => { setMergeTarget(row); setMergeSearch(""); };
+
+  const doMerge = async (source: ComparisonRow) => {
+    if (!mergeTarget) return;
+    setMerging(true);
+    try {
+      const { error } = await supabase.rpc("admin_merge_products", {
+        _source_key: source.product_key,
+        _target_key: mergeTarget.product_key,
+      });
+      if (error) throw error;
+      toast.success(`"${source.name}" unido a "${mergeTarget.name}".`);
+      setMergeTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["flyer_products"] });
+    } catch (err: any) {
+      toast.error("Falha ao unir: " + (err?.message ?? "erro desconhecido"));
+    } finally {
+      setMerging(false);
     }
   };
 
+  const mergeOptions = rows.filter(
+    (r) => r.product_key !== mergeTarget?.product_key && r.name.toLowerCase().includes(mergeSearch.toLowerCase())
+  );
+
   return (
     <div>
-      {isAdmin && mergeSource && (
-        <div className="sticky top-0 z-20 border-b bg-primary/10 px-4 py-2 text-sm">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-            <span>
-              Modo unir: clique no <Link2 className="inline h-3.5 w-3.5" /> de outro item para
-              unificá-lo a <strong>"{mergeSource.name}"</strong>.
-            </span>
-            <Button size="sm" variant="ghost" onClick={() => setMergeSource(null)}>
-              <X className="h-4 w-4" /> Cancelar
-            </Button>
+      {/* Merge Modal */}
+      <Dialog open={!!mergeTarget} onOpenChange={(open) => !open && setMergeTarget(null)}>
+        <DialogContent className="max-w-lg mx-4 sm:mx-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Merge className="h-4 w-4 text-primary" />
+              Unir produto duplicado
+            </DialogTitle>
+            <DialogDescription>
+              Produto canonical (será mantido):
+              <span className="ml-1 font-semibold text-foreground">{mergeTarget?.name}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Busque o duplicado abaixo. Ao clicar em <strong>Unir</strong>, ele será removido.
+          </p>
+          <div className="relative mt-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input autoFocus placeholder="Buscar produto duplicado…" value={mergeSearch}
+              onChange={(e) => setMergeSearch(e.target.value)} className="pl-9" />
           </div>
-        </div>
-      )}
+          <div className="mt-2 max-h-60 overflow-y-auto rounded-xl border divide-y">
+            {mergeOptions.length === 0 && (
+              <p className="px-4 py-6 text-center text-sm text-muted-foreground">Nenhum produto encontrado.</p>
+            )}
+            {mergeOptions.map((opt) => (
+              <div key={opt.product_key} className="flex items-center gap-3 px-3 py-3 hover:bg-muted/40">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm truncate">{opt.name}</div>
+                  <div className="text-xs text-muted-foreground">{opt.category} • {opt.unit ?? "—"}</div>
+                </div>
+                <div className="text-xs text-muted-foreground tabular-nums shrink-0">{opt.bestPrice ? brl(opt.bestPrice) : "—"}</div>
+                <Button size="sm" variant="destructive" disabled={merging} onClick={() => doMerge(opt)}>
+                  <Link2 className="h-3.5 w-3.5 mr-1" /> Unir
+                </Button>
+              </div>
+            ))}
+          </div>
+          <div className="mt-2 text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+            ⚠️ Esta ação é permanente.
+          </div>
+        </DialogContent>
+      </Dialog>
 
-      {/* Hero */}
-      <section className="relative overflow-hidden border-b bg-gradient-to-br from-accent/40 via-background to-secondary/40">
-        <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <Badge className="gap-1 bg-success/15 text-success hover:bg-success/15">
+      {/* Hero — compacto no mobile */}
+      <section className="border-b bg-gradient-to-br from-accent/40 via-background to-secondary/40">
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:py-14">
+          <div className="mb-3 flex flex-wrap items-center gap-2">
+            <Badge className="gap-1 bg-success/15 text-success hover:bg-success/15 text-xs">
               <Sparkles className="h-3 w-3" />
               {lastSyncedAt
                 ? `Atualizado ${lastSyncedAt.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`
-                : "Aguardando primeira sincronização"}
+                : "Aguardando sincronização"}
             </Badge>
-            <Button size="sm" variant="outline" onClick={refresh} disabled={refreshing} className="gap-1.5">
-              <RefreshCw className={"h-3.5 w-3.5 " + (refreshing ? "animate-spin" : "")} />
-              {refreshing ? "Atualizando…" : "Atualizar agora"}
+            <Button size="sm" variant="outline" onClick={refresh} disabled={refreshing} className="gap-1.5 h-7 text-xs">
+              <RefreshCw className={"h-3 w-3 " + (refreshing ? "animate-spin" : "")} />
+              {refreshing ? "Atualizando…" : "Atualizar"}
             </Button>
           </div>
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-            Os encartes de Saquarema,<br />
+
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-5xl leading-tight">
+            Os encartes de Saquarema,{" "}
             <span className="text-primary">comparados lado a lado.</span>
           </h1>
-          <p className="mt-4 max-w-2xl text-lg text-muted-foreground">
-            Veja qual mercado tem o melhor preço de cada produto e monte sua lista de compras inteligente.
+          <p className="mt-2 text-sm sm:text-lg text-muted-foreground sm:mt-4 max-w-2xl">
+            Veja qual mercado tem o melhor preço e monte sua lista inteligente.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
+
+          <div className="mt-4 flex flex-wrap gap-2">
             {markets.map((m) => (
-              <MarketChip key={m.id} market={m} />
+              <div key={m.id} className="flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs sm:text-sm shadow-sm">
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: m.logo_color }} />
+                <span className="font-medium">{m.name}</span>
+              </div>
             ))}
           </div>
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Stat label="Produtos comparados" value={String(rows.length)} />
+
+          {/* Stats: 3 colunas no mobile também, menor */}
+          <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4 sm:mt-8">
+            <Stat label="Produtos" value={String(rows.length)} />
             <Stat label="Mercados" value={String(markets.length)} />
-            <Stat label="Economia possível" value={brl(totalSavings)} accent />
+            <Stat label="Economia" value={brl(totalSavings)} accent />
           </div>
         </div>
       </section>
 
       {/* Filtros */}
-      <section className="mx-auto max-w-6xl px-4 py-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative w-full sm:max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Buscar produto…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <section className="mx-auto max-w-6xl px-4 pt-4 pb-6 sm:py-8">
+        {/* Busca */}
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar produto…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-11 text-base sm:text-sm sm:h-10 sm:max-w-sm"
+          />
+        </div>
+
+        {/* Categorias: scroll horizontal no mobile */}
+        <div className="mt-3 -mx-4 px-4 sm:mx-0 sm:px-0">
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none sm:flex-wrap">
             <CategoryPill active={category === null} onClick={() => setCategory(null)}>Todas</CategoryPill>
             {categories.map((c) => (
-              <CategoryPill key={c} active={category === c} onClick={() => setCategory(c)}>
-                {c}
-              </CategoryPill>
+              <CategoryPill key={c} active={category === c} onClick={() => setCategory(c)}>{c}</CategoryPill>
             ))}
           </div>
         </div>
 
-        {/* Tabela */}
-        <div className="mt-6 overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-card)]">
+        {isAdmin && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <Merge className="h-3.5 w-3.5 shrink-0" />
+            <span><strong>Modo admin:</strong> toque em <Merge className="inline h-3 w-3" /> para unir duplicados.</span>
+          </div>
+        )}
+
+        {/* Tabela — desktop only */}
+        <div className="mt-4 hidden sm:block overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-card)]">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
@@ -215,15 +253,13 @@ function Index() {
                   ))}
                   <th className="px-4 py-3 text-right">Melhor</th>
                   <th className="px-4 py-3" />
-                  {isAdmin && <th className="px-4 py-3" />}
-
+                  {isAdmin && <th className="px-4 py-3 text-center">Unir</th>}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((row, i) => {
                   const prev = filtered[i - 1];
-                  const showDivider =
-                    row.marketCount < 2 && (!prev || prev.marketCount >= 2);
+                  const showDivider = row.marketCount < 2 && (!prev || prev.marketCount >= 2);
                   return (
                     <Fragment key={row.product_key}>
                       {showDivider && (
@@ -233,31 +269,59 @@ function Index() {
                           </td>
                         </tr>
                       )}
-                      <Row
-                        row={row}
-                        markets={markets}
-                        isAdmin={isAdmin}
-                        mergeSourceKey={mergeSource?.product_key ?? null}
-                        onMerge={onMergeClick}
-                      />
+                      <DesktopRow row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
                     </Fragment>
                   );
                 })}
-
                 {!filtered.length && (
-                  <tr><td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-12 text-center text-muted-foreground">
-                    {productsQ.isLoading ? "Carregando encartes…" : "Nenhum produto encontrado."}
-                  </td></tr>
+                  <tr>
+                    <td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-12 text-center text-muted-foreground">
+                      {productsQ.isLoading ? "Carregando encartes…" : "Nenhum produto encontrado."}
+                    </td>
+                  </tr>
                 )}
-
               </tbody>
-
             </table>
           </div>
         </div>
 
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Quer salvar uma lista e ver o total por mercado?{" "}
+        {/* Cards — mobile only */}
+        <div className="mt-4 sm:hidden">
+          {productsQ.isLoading && (
+            <div className="py-12 text-center text-muted-foreground text-sm">Carregando encartes…</div>
+          )}
+          {!productsQ.isLoading && filtered.length === 0 && (
+            <div className="py-12 text-center text-muted-foreground text-sm">Nenhum produto encontrado.</div>
+          )}
+
+          {/* Divider for non-compared */}
+          {(() => {
+            const compared = filtered.filter((r) => r.marketCount >= 2);
+            const others = filtered.filter((r) => r.marketCount < 2);
+            return (
+              <>
+                {compared.map((row) => (
+                  <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                ))}
+                {others.length > 0 && (
+                  <>
+                    <div className="my-3 flex items-center gap-2">
+                      <div className="h-px flex-1 bg-border" />
+                      <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground px-2">Sem comparação</span>
+                      <div className="h-px flex-1 bg-border" />
+                    </div>
+                    {others.map((row) => (
+                      <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                    ))}
+                  </>
+                )}
+              </>
+            );
+          })()}
+        </div>
+
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Quer salvar uma lista?{" "}
           <Link to="/auth" className="font-medium text-primary underline">Crie sua conta grátis</Link>.
         </p>
       </section>
@@ -265,52 +329,104 @@ function Index() {
   );
 }
 
-function MarketChip({ market }: { market: Market }) {
-  return (
-    <div className="flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-sm shadow-sm">
-      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: market.logo_color }} />
-      <span className="font-medium">{market.name}</span>
-    </div>
-  );
-}
-
-function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="rounded-xl border bg-card p-4 shadow-[var(--shadow-card)]">
-      <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={"mt-1 text-2xl font-bold " + (accent ? "text-success" : "")}>{value}</div>
-    </div>
-  );
-}
-
-function CategoryPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      onClick={onClick}
-      className={
-        "rounded-full border px-3 py-1.5 text-xs font-medium transition " +
-        (active ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted")
-      }
-    >
-      {children}
-    </button>
-  );
-}
-
-function Row({
-  row,
-  markets,
-  isAdmin,
-  mergeSourceKey,
-  onMerge,
-}: {
-  row: ComparisonRow;
-  markets: Market[];
-  isAdmin: boolean;
-  mergeSourceKey: string | null;
-  onMerge: (row: ComparisonRow) => void;
+/* ── Card mobile ── */
+function MobileCard({ row, markets, isAdmin, onMerge }: {
+  row: ComparisonRow; markets: Market[]; isAdmin: boolean; onMerge: (r: ComparisonRow) => void;
 }) {
+  const [added, setAdded] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
+  const addToList = async () => {
+    const { data: sess } = await supabase.auth.getSession();
+    if (!sess.session) {
+      toast.error("Faça login para salvar sua lista", {
+        action: { label: "Entrar", onClick: () => (window.location.href = "/auth") },
+      });
+      return;
+    }
+    const { error } = await supabase.from("shopping_list_items").insert({
+      user_id: sess.session.user.id, product_key: row.product_key, product_name: row.name, quantity: 1,
+    });
+    if (error) toast.error("Não foi possível adicionar");
+    else {
+      setAdded(true);
+      toast.success(`${row.name} adicionado à lista`);
+      setTimeout(() => setAdded(false), 1500);
+    }
+  };
+
+  const bestMarket = markets.find((m) => m.slug === row.bestMarketSlug);
+
+  return (
+    <div className="mb-2 rounded-xl border bg-card overflow-hidden shadow-[var(--shadow-card)]">
+      {/* Linha principal */}
+      <div className="flex items-center gap-3 px-3 py-3">
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm leading-tight">{row.name}</div>
+          <div className="mt-0.5 text-xs text-muted-foreground">{row.category}{row.unit ? ` • ${row.unit}` : ""}</div>
+        </div>
+
+        {/* Melhor preço */}
+        {bestMarket && (
+          <div className="text-right shrink-0">
+            <div className="text-xs text-muted-foreground">{bestMarket.name}</div>
+            <div className="flex items-center gap-1 text-success font-bold text-sm tabular-nums">
+              <TrendingDown className="h-3 w-3" />
+              {brl(row.bestPrice!)}
+            </div>
+          </div>
+        )}
+
+        {/* Ações */}
+        <div className="flex items-center gap-1 shrink-0">
+          {isAdmin && (
+            <button onClick={() => onMerge(row)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:text-primary hover:bg-muted">
+              <Merge className="h-4 w-4" />
+            </button>
+          )}
+          <button
+            onClick={addToList}
+            className={"grid h-8 w-8 place-items-center rounded-lg border transition " + (added ? "bg-success/10 border-success/30 text-success" : "bg-card text-muted-foreground hover:text-foreground")}
+          >
+            {added ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+          </button>
+          {row.marketCount >= 2 && (
+            <button onClick={() => setExpanded((v) => !v)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted">
+              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Preços expandidos */}
+      {expanded && (
+        <div className="border-t bg-muted/30 px-3 py-2 grid grid-cols-3 gap-2">
+          {markets.map((m) => {
+            const price = row.prices[m.slug];
+            const isBest = m.slug === row.bestMarketSlug;
+            return (
+              <div key={m.id} className={"rounded-lg px-2 py-1.5 text-center " + (isBest ? "bg-success/10" : "")}>
+                <div className="flex items-center justify-center gap-1 mb-0.5">
+                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: m.logo_color }} />
+                  <span className="text-xs text-muted-foreground truncate">{m.name}</span>
+                </div>
+                {price === null
+                  ? <span className="text-xs text-muted-foreground">—</span>
+                  : <span className={"text-xs font-semibold tabular-nums " + (isBest ? "text-success" : "")}>{brl(price)}</span>
+                }
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Linha desktop ── */
+function DesktopRow({ row, markets, isAdmin, onMerge }: {
+  row: ComparisonRow; markets: Market[]; isAdmin: boolean; onMerge: (r: ComparisonRow) => void;
+}) {
   const [added, setAdded] = useState(false);
   const addToList = async () => {
     const { data: sess } = await supabase.auth.getSession();
@@ -321,10 +437,7 @@ function Row({
       return;
     }
     const { error } = await supabase.from("shopping_list_items").insert({
-      user_id: sess.session.user.id,
-      product_key: row.product_key,
-      product_name: row.name,
-      quantity: 1,
+      user_id: sess.session.user.id, product_key: row.product_key, product_name: row.name, quantity: 1,
     });
     if (error) toast.error("Não foi possível adicionar");
     else {
@@ -345,28 +458,20 @@ function Row({
         const isBest = m.slug === row.bestMarketSlug;
         return (
           <td key={m.id} className="px-4 py-3 text-right">
-            {price === null ? (
-              <span className="text-xs text-muted-foreground">—</span>
-            ) : (
-              <span
-                className={
-                  "inline-flex items-center gap-1 rounded-md px-2 py-1 tabular-nums " +
-                  (isBest ? "bg-success/15 font-semibold text-success" : "text-foreground/80")
-                }
-              >
-                {isBest && <TrendingDown className="h-3 w-3" />}
-                {brl(price)}
-              </span>
-            )}
+            {price === null
+              ? <span className="text-xs text-muted-foreground">—</span>
+              : <span className={"inline-flex items-center gap-1 rounded-md px-2 py-1 tabular-nums " + (isBest ? "bg-success/15 font-semibold text-success" : "text-foreground/80")}>
+                  {isBest && <TrendingDown className="h-3 w-3" />}
+                  {brl(price)}
+                </span>
+            }
           </td>
         );
       })}
       <td className="px-4 py-3 text-right">
         {row.bestMarketSlug && (
-          <div className="text-right">
-            <div className="text-xs text-muted-foreground">
-              {markets.find((m) => m.slug === row.bestMarketSlug)?.name}
-            </div>
+          <div>
+            <div className="text-xs text-muted-foreground">{markets.find((m) => m.slug === row.bestMarketSlug)?.name}</div>
             <div className="font-bold text-success tabular-nums">{brl(row.bestPrice!)}</div>
           </div>
         )}
@@ -377,18 +482,32 @@ function Row({
         </Button>
       </td>
       {isAdmin && (
-        <td className="px-4 py-3 text-right">
-          <Button
-            size="sm"
-            variant={mergeSourceKey === row.product_key ? "default" : "ghost"}
-            title={mergeSourceKey ? "Unir este item ao selecionado" : "Selecionar para unir duplicado"}
-            onClick={() => onMerge(row)}
-          >
-            <Link2 className="h-4 w-4" />
+        <td className="px-4 py-3 text-center">
+          <Button size="sm" variant="ghost" title="Unir duplicado" onClick={() => onMerge(row)} className="text-muted-foreground hover:text-primary">
+            <Merge className="h-4 w-4" />
           </Button>
         </td>
       )}
-
     </tr>
+  );
+}
+
+function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div className="rounded-xl border bg-card p-3 sm:p-4 shadow-[var(--shadow-card)]">
+      <div className="text-[10px] sm:text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className={"mt-1 text-xl sm:text-2xl font-bold " + (accent ? "text-success" : "")}>{value}</div>
+    </div>
+  );
+}
+
+function CategoryPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      onClick={onClick}
+      className={"shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition " + (active ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted")}
+    >
+      {children}
+    </button>
   );
 }
