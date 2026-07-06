@@ -1,0 +1,145 @@
+{
+  "version": 1,
+  "sdk_version": "0.20.0",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://zovlusxdvwqtyhwbpzrf.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "encartesaqua-mcp",
+      "version": "0.1.0",
+      "title": "EncarteSaqua"
+    },
+    "tools": [
+      {
+        "name": "list_markets",
+        "title": "List markets",
+        "description": "List all supermarkets tracked by EncarteSaqua with their slug, name and last flyer sync time.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "search_products",
+        "title": "Search flyer products",
+        "description": "Search products from all current supermarket flyers by name (case-insensitive substring). Returns each match with market, price, unit and category. Use to compare prices across markets.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Search term, e.g. 'arroz', 'coca cola', 'coxa de frango'."
+            },
+            "limit": {
+              "description": "Max results (default 40).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_shopping_list",
+        "title": "Get shopping list",
+        "description": "Return the signed-in user's shopping list items.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "add_shopping_item",
+        "title": "Add shopping list item",
+        "description": "Add an item to the signed-in user's shopping list. Provide product_key from `search_products` when available; otherwise it is derived from product_name.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "product_name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Human-readable product name."
+            },
+            "product_key": {
+              "description": "Canonical key (from search_products.product_key).",
+              "type": "string"
+            },
+            "quantity": {
+              "description": "Quantity (default 1).",
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999
+            }
+          },
+          "required": [
+            "product_name"
+          ]
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "remove_shopping_item",
+        "title": "Remove shopping list item",
+        "description": "Remove an item from the signed-in user's shopping list by its id.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "description": "Shopping list item id (from get_shopping_list)."
+            }
+          },
+          "required": [
+            "id"
+          ]
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
