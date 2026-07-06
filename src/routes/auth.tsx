@@ -10,7 +10,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+function safeNext(next: string | undefined): string {
+  if (!next) return "/lista";
+  // Only allow same-origin relative paths
+  if (!next.startsWith("/") || next.startsWith("//")) return "/lista";
+  return next;
+}
+
 export const Route = createFileRoute("/auth")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    next: typeof s.next === "string" ? s.next : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Entrar — EncarteSaqua" },
@@ -22,15 +32,17 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const router = useRouter();
+  const { next } = Route.useSearch();
+  const redirectTarget = safeNext(next);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.navigate({ to: "/lista" });
+      if (data.session) window.location.replace(redirectTarget);
     });
-  }, [router]);
+  }, [redirectTarget]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,7 +51,7 @@ function AuthPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Bem-vindo de volta!");
-    router.navigate({ to: "/lista" });
+    window.location.replace(redirectTarget);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -48,7 +60,7 @@ function AuthPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: window.location.origin + redirectTarget },
     });
     setLoading(false);
     if (error) return toast.error(error.message);
@@ -57,14 +69,16 @@ function AuthPage() {
 
   const handleGoogle = async () => {
     setLoading(true);
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    const result = await lovable.auth.signInWithOAuth("google", {
+      redirect_uri: window.location.origin + "/auth?next=" + encodeURIComponent(redirectTarget),
+    });
     if (result.error) {
       setLoading(false);
       toast.error("Não foi possível entrar com Google");
       return;
     }
     if (result.redirected) return;
-    router.navigate({ to: "/lista" });
+    window.location.replace(redirectTarget);
   };
 
   return (
