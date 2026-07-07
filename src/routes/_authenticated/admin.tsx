@@ -124,6 +124,31 @@ function AdminPage() {
     setMergingAll(false);
   };
 
+  const autoMerge = async () => {
+    setAutoMerging(true);
+    try {
+      const result = await runAutoMergeDuplicates();
+      if (result.merged > 0) {
+        toast.success(
+          `${result.merged} duplicado(s) unido(s) automaticamente (de ${result.pairsFound} detectado(s)).`,
+        );
+      } else if (result.pairsFound === 0) {
+        toast.info("Nenhum duplicado encontrado.");
+      } else {
+        toast.warning(`Detectados ${result.pairsFound}, mas nenhum pôde ser unido.`);
+      }
+      if (result.errors.length) {
+        console.warn("auto-merge errors", result.errors);
+      }
+      await qc.invalidateQueries({ queryKey: ["flyer_products"] });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "erro desconhecido";
+      toast.error("Falha na união automática: " + msg);
+    } finally {
+      setAutoMerging(false);
+    }
+  };
+
   const pending = pairs.filter((p) => !p.merged && !p.dismissed);
   const merged = pairs.filter((p) => p.merged);
   const dismissed = pairs.filter((p) => p.dismissed);
