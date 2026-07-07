@@ -8,6 +8,7 @@ import { fetchFlyerProducts } from "@/lib/comparison";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { detectDuplicates } from "@/lib/detect-duplicates.functions";
+import { runAutoMergeDuplicates } from "@/lib/auto-merge-duplicates.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — EncarteSaqua" }] }),
@@ -45,6 +46,7 @@ function AdminPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [mergingAll, setMergingAll] = useState(false);
   const [analyzed, setAnalyzed] = useState(false);
+  const [autoMerging, setAutoMerging] = useState(false);
 
   const products = productsQ.data ?? [];
   const uniqueProducts = Array.from(
@@ -122,6 +124,31 @@ function AdminPage() {
     setMergingAll(false);
   };
 
+  const autoMerge = async () => {
+    setAutoMerging(true);
+    try {
+      const result = await runAutoMergeDuplicates();
+      if (result.merged > 0) {
+        toast.success(
+          `${result.merged} duplicado(s) unido(s) automaticamente (de ${result.pairsFound} detectado(s)).`,
+        );
+      } else if (result.pairsFound === 0) {
+        toast.info("Nenhum duplicado encontrado.");
+      } else {
+        toast.warning(`Detectados ${result.pairsFound}, mas nenhum pôde ser unido.`);
+      }
+      if (result.errors.length) {
+        console.warn("auto-merge errors", result.errors);
+      }
+      await qc.invalidateQueries({ queryKey: ["flyer_products"] });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "erro desconhecido";
+      toast.error("Falha na união automática: " + msg);
+    } finally {
+      setAutoMerging(false);
+    }
+  };
+
   const pending = pairs.filter((p) => !p.merged && !p.dismissed);
   const merged = pairs.filter((p) => p.merged);
   const dismissed = pairs.filter((p) => p.dismissed);
@@ -146,10 +173,34 @@ function AdminPage() {
               variações de ortografia e nomes parciais.
             </p>
           </div>
-          <Button onClick={analyze} disabled={analyzing || productsQ.isLoading} className="gap-2 shrink-0">
-            {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {analyzing ? "Analisando…" : "Analisar agora"}
-          </Button>
+          <div className="flex flex-col gap-2 shrink-0 sm:items-end">
+            <Button
+              onClick={autoMerge}
+              disabled={autoMerging || productsQ.isLoading}
+              className="gap-2"
+            >
+              {autoMerging ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Merge className="h-4 w-4" />
+              )}
+              {autoMerging ? "Unindo…" : "Detectar e unir automaticamente"}
+            </Button>
+            <Button
+              onClick={analyze}
+              disabled={analyzing || productsQ.isLoading}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              {analyzing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {analyzing ? "Analisando…" : "Revisar manualmente"}
+            </Button>
+          </div>
         </div>
 
         {analyzing && (

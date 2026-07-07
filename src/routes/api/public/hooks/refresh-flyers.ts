@@ -209,7 +209,18 @@ export const Route = createFileRoute("/api/public/hooks/refresh-flyers")({
             }
           }
 
-          return Response.json({ success: true, results });
+          // Auto-detecta e une duplicados entre mercados após a sincronização
+          let autoMerge: unknown = null;
+          try {
+            const { autoMergeDuplicates } = await import(
+              "@/lib/auto-merge-duplicates.server"
+            );
+            autoMerge = await autoMergeDuplicates(supabaseAdmin);
+          } catch (err) {
+            autoMerge = { error: (err as Error).message };
+          }
+
+          return Response.json({ success: true, results, autoMerge });
         } catch (err) {
           return Response.json(
             { success: false, error: (err as Error).message },
