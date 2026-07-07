@@ -173,10 +173,34 @@ function AdminPage() {
               variações de ortografia e nomes parciais.
             </p>
           </div>
-          <Button onClick={analyze} disabled={analyzing || productsQ.isLoading} className="gap-2 shrink-0">
-            {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {analyzing ? "Analisando…" : "Analisar agora"}
-          </Button>
+          <div className="flex flex-col gap-2 shrink-0 sm:items-end">
+            <Button
+              onClick={autoMerge}
+              disabled={autoMerging || productsQ.isLoading}
+              className="gap-2"
+            >
+              {autoMerging ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Merge className="h-4 w-4" />
+              )}
+              {autoMerging ? "Unindo…" : "Detectar e unir automaticamente"}
+            </Button>
+            <Button
+              onClick={analyze}
+              disabled={analyzing || productsQ.isLoading}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              {analyzing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {analyzing ? "Analisando…" : "Revisar manualmente"}
+            </Button>
+          </div>
         </div>
 
         {analyzing && (
