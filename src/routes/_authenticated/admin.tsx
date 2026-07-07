@@ -8,6 +8,7 @@ import { fetchFlyerProducts } from "@/lib/comparison";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { detectDuplicates } from "@/lib/detect-duplicates.functions";
+import { runAutoMergeDuplicates } from "@/lib/auto-merge-duplicates.functions";
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — EncarteSaqua" }] }),
