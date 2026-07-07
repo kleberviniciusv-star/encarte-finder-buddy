@@ -46,6 +46,7 @@ function AdminPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [mergingAll, setMergingAll] = useState(false);
   const [analyzed, setAnalyzed] = useState(false);
+  const [autoMerging, setAutoMerging] = useState(false);
 
   const products = productsQ.data ?? [];
   const uniqueProducts = Array.from(
