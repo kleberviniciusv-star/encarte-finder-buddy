@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      broadcasts: {
+        Row: {
+          caption: string
+          created_at: string
+          created_by: string
+          id: string
+          image_data: string
+          product_count: number
+          recipient_count: number
+          sent_at: string | null
+        }
+        Insert: {
+          caption: string
+          created_at?: string
+          created_by: string
+          id?: string
+          image_data: string
+          product_count?: number
+          recipient_count?: number
+          sent_at?: string | null
+        }
+        Update: {
+          caption?: string
+          created_at?: string
+          created_by?: string
+          id?: string
+          image_data?: string
+          product_count?: number
+          recipient_count?: number
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
       flyer_products: {
         Row: {
           category: string
@@ -91,6 +124,33 @@ export type Database = {
           logo_color?: string
           name?: string
           slug?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          broadcast_opt_in: boolean
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          whatsapp_number: string | null
+        }
+        Insert: {
+          broadcast_opt_in?: boolean
+          created_at?: string
+          full_name?: string | null
+          id: string
+          updated_at?: string
+          whatsapp_number?: string | null
+        }
+        Update: {
+          broadcast_opt_in?: boolean
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          whatsapp_number?: string | null
         }
         Relationships: []
       }
