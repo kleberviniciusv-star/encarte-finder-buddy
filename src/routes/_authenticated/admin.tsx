@@ -61,7 +61,9 @@ function AdminPage() {
   const [analyzed, setAnalyzed] = useState(false);
   const [autoMerging, setAutoMerging] = useState(false);
 
+  const marketsQ = useQuery({ queryKey: ["markets"], queryFn: fetchMarkets });
   const products = productsQ.data ?? [];
+  const markets = marketsQ.data ?? [];
   const uniqueProducts = Array.from(
     new Map(
       products.map((p) => [
@@ -70,6 +72,91 @@ function AdminPage() {
       ]),
     ).values(),
   );
+
+  // Broadcast state
+  const [generating, setGenerating] = useState(false);
+  const [flyerPreview, setFlyerPreview] = useState<{ dataUrl: string; caption: string; count: number } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const broadcastsQ = useQuery({
+    queryKey: ["broadcasts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("broadcasts")
+        .select("id, created_at, caption, product_count, recipient_count, sent_at, image_data")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const recipientsQ = useQuery({
+    queryKey: ["broadcast-recipients-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("broadcast_opt_in", true)
+        .not("whatsapp_number", "is", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  const generateFlyer = async () => {
+    if (!markets.length || !products.length) {
+      toast.error("Sem produtos para gerar o encarte.");
+      return;
+    }
+    setGenerating(true);
+    try {
+      const comparison = buildComparison(markets, products);
+      const marketNames = Object.fromEntries(markets.map((m) => [m.slug, m.name]));
+      const highlights = pickHighlights(comparison, marketNames, 12);
+      if (!highlights.length) {
+        toast.error("Nenhuma comparação disponível para destacar.");
+        return;
+      }
+      const { dataUrl, caption } = await renderFlyerPng(highlights);
+      setFlyerPreview({ dataUrl, caption, count: highlights.length });
+      toast.success("Encarte gerado! Revise abaixo e salve.");
+    } catch (err) {
+      toast.error("Falha ao gerar: " + (err as Error).message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const saveBroadcast = async () => {
+    if (!flyerPreview) return;
+    setSaving(true);
+    const { data: sess } = await supabase.auth.getSession();
+    const uid = sess.session?.user.id;
+    const { error } = await supabase.from("broadcasts").insert({
+      created_by: uid!,
+      image_data: flyerPreview.dataUrl,
+      caption: flyerPreview.caption,
+      product_count: flyerPreview.count,
+      recipient_count: recipientsQ.data ?? 0,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao salvar: " + error.message);
+    } else {
+      toast.success("Encarte salvo no histórico.");
+      setFlyerPreview(null);
+      await qc.invalidateQueries({ queryKey: ["broadcasts"] });
+    }
+  };
+
+  const downloadFlyer = (dataUrl: string, id: string) => {
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `encarte-${id}.png`;
+    a.click();
+  };
+
 
   const analyze = async () => {
     if (uniqueProducts.length === 0) {
