@@ -129,10 +129,16 @@ function Header() {
             Comparar
           </Link>
           {email && (
-            <Link to="/lista" className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted" activeProps={{ className: "px-3 py-2 text-sm font-semibold text-foreground rounded-lg bg-muted" }}>
-              Minha lista
-            </Link>
+            <>
+              <Link to="/lista" className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted" activeProps={{ className: "px-3 py-2 text-sm font-semibold text-foreground rounded-lg bg-muted" }}>
+                Minha lista
+              </Link>
+              <Link to="/perfil" className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted" activeProps={{ className: "px-3 py-2 text-sm font-semibold text-foreground rounded-lg bg-muted" }}>
+                Perfil
+              </Link>
+            </>
           )}
+
           {isAdmin && (
             <Link to="/admin" className="flex items-center gap-1 px-3 py-2 text-sm font-medium text-amber-600 hover:text-amber-700 rounded-lg hover:bg-amber-50" activeProps={{ className: "flex items-center gap-1 px-3 py-2 text-sm font-semibold text-amber-700 rounded-lg bg-amber-50" }}>
               <ShieldCheck className="h-3.5 w-3.5" /> Admin
@@ -184,6 +190,14 @@ function Header() {
                 Minha lista de compras
               </Link>
             )}
+            {email && (
+              <Link to="/perfil" onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-muted-foreground hover:bg-muted"
+                activeProps={{ className: "flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-semibold text-foreground bg-muted" }}>
+                <UserIcon className="h-4 w-4" /> Meu perfil
+              </Link>
+            )}
+
             {isAdmin && (
               <Link to="/admin" onClick={() => setMenuOpen(false)}
                 className="flex items-center gap-2 rounded-xl px-3 py-3 text-sm font-medium text-amber-600 hover:bg-amber-50">

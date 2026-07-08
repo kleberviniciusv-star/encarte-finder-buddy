@@ -1,14 +1,27 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, Merge, Check, X, Loader2, AlertTriangle } from "lucide-react";
+import {
+  Sparkles,
+  Merge,
+  Check,
+  X,
+  Loader2,
+  AlertTriangle,
+  Image as ImageIcon,
+  Send,
+  Download,
+  Users,
+} from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { fetchFlyerProducts } from "@/lib/comparison";
+import { fetchFlyerProducts, fetchMarkets, buildComparison } from "@/lib/comparison";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { detectDuplicates } from "@/lib/detect-duplicates.functions";
 import { runAutoMergeDuplicates } from "@/lib/auto-merge-duplicates.functions";
+import { pickHighlights, renderFlyerPng } from "@/lib/broadcast-flyer";
+
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — EncarteSaqua" }] }),
@@ -48,7 +61,9 @@ function AdminPage() {
   const [analyzed, setAnalyzed] = useState(false);
   const [autoMerging, setAutoMerging] = useState(false);
 
+  const marketsQ = useQuery({ queryKey: ["markets"], queryFn: fetchMarkets });
   const products = productsQ.data ?? [];
+  const markets = marketsQ.data ?? [];
   const uniqueProducts = Array.from(
     new Map(
       products.map((p) => [
@@ -57,6 +72,91 @@ function AdminPage() {
       ]),
     ).values(),
   );
+
+  // Broadcast state
+  const [generating, setGenerating] = useState(false);
+  const [flyerPreview, setFlyerPreview] = useState<{ dataUrl: string; caption: string; count: number } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const broadcastsQ = useQuery({
+    queryKey: ["broadcasts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("broadcasts")
+        .select("id, created_at, caption, product_count, recipient_count, sent_at, image_data")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const recipientsQ = useQuery({
+    queryKey: ["broadcast-recipients-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .eq("broadcast_opt_in", true)
+        .not("whatsapp_number", "is", null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+  });
+
+  const generateFlyer = async () => {
+    if (!markets.length || !products.length) {
+      toast.error("Sem produtos para gerar o encarte.");
+      return;
+    }
+    setGenerating(true);
+    try {
+      const comparison = buildComparison(markets, products);
+      const marketNames = Object.fromEntries(markets.map((m) => [m.slug, m.name]));
+      const highlights = pickHighlights(comparison, marketNames, 12);
+      if (!highlights.length) {
+        toast.error("Nenhuma comparação disponível para destacar.");
+        return;
+      }
+      const { dataUrl, caption } = await renderFlyerPng(highlights);
+      setFlyerPreview({ dataUrl, caption, count: highlights.length });
+      toast.success("Encarte gerado! Revise abaixo e salve.");
+    } catch (err) {
+      toast.error("Falha ao gerar: " + (err as Error).message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const saveBroadcast = async () => {
+    if (!flyerPreview) return;
+    setSaving(true);
+    const { data: sess } = await supabase.auth.getSession();
+    const uid = sess.session?.user.id;
+    const { error } = await supabase.from("broadcasts").insert({
+      created_by: uid!,
+      image_data: flyerPreview.dataUrl,
+      caption: flyerPreview.caption,
+      product_count: flyerPreview.count,
+      recipient_count: recipientsQ.data ?? 0,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("Falha ao salvar: " + error.message);
+    } else {
+      toast.success("Encarte salvo no histórico.");
+      setFlyerPreview(null);
+      await qc.invalidateQueries({ queryKey: ["broadcasts"] });
+    }
+  };
+
+  const downloadFlyer = (dataUrl: string, id: string) => {
+    const a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = `encarte-${id}.png`;
+    a.click();
+  };
+
 
   const analyze = async () => {
     if (uniqueProducts.length === 0) {
@@ -298,6 +398,106 @@ function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Broadcast section */}
+      <div className="mt-6 rounded-2xl border bg-card p-6 shadow-[var(--shadow-card)]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" />
+              Encarte semanal para WhatsApp
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground max-w-md">
+              Gera uma imagem única (PNG) com as maiores promoções da semana e salva no histórico
+              de disparo.
+            </p>
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
+              {recipientsQ.data ?? 0} contato(s) inscritos para receber
+            </div>
+          </div>
+          <Button onClick={generateFlyer} disabled={generating} className="gap-2 shrink-0">
+            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+            {generating ? "Gerando…" : "Gerar encarte da semana"}
+          </Button>
+        </div>
+
+        {flyerPreview && (
+          <div className="mt-5 grid gap-4 sm:grid-cols-[220px_1fr]">
+            <img
+              src={flyerPreview.dataUrl}
+              alt="Prévia do encarte"
+              className="w-full rounded-xl border shadow-sm"
+            />
+            <div className="space-y-3">
+              <textarea
+                value={flyerPreview.caption}
+                onChange={(e) =>
+                  setFlyerPreview((p) => (p ? { ...p, caption: e.target.value } : p))
+                }
+                className="w-full min-h-[220px] rounded-xl border bg-background p-3 text-sm font-mono"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={saveBroadcast} disabled={saving} className="gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Salvar no histórico
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => downloadFlyer(flyerPreview.dataUrl, "preview")}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" /> Baixar PNG
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setFlyerPreview(null)}>
+                  Descartar
+                </Button>
+              </div>
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <Send className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                O disparo automático por WhatsApp será liberado quando o provedor de mensagens for
+                conectado. Por enquanto o encarte é salvo no histórico e pode ser baixado.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {broadcastsQ.data && broadcastsQ.data.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold mb-2">Histórico</h3>
+            <div className="divide-y rounded-xl border overflow-hidden">
+              {broadcastsQ.data.map((b) => (
+                <div key={b.id} className="flex items-center gap-3 px-3 py-2">
+                  <img
+                    src={b.image_data}
+                    alt=""
+                    className="h-14 w-8 rounded object-cover border shrink-0"
+                  />
+                  <div className="flex-1 min-w-0 text-xs">
+                    <div className="font-medium truncate">
+                      {new Date(b.created_at).toLocaleString("pt-BR")}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {b.product_count} produto(s) • {b.recipient_count} contato(s)
+                      {b.sent_at ? " • enviado" : " • aguardando envio"}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => downloadFlyer(b.image_data, b.id)}
+                    className="gap-1 shrink-0"
+                  >
+                    <Download className="h-3.5 w-3.5" /> PNG
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
