@@ -1,14 +1,27 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Sparkles, Merge, Check, X, Loader2, AlertTriangle } from "lucide-react";
+import {
+  Sparkles,
+  Merge,
+  Check,
+  X,
+  Loader2,
+  AlertTriangle,
+  Image as ImageIcon,
+  Send,
+  Download,
+  Users,
+} from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
-import { fetchFlyerProducts } from "@/lib/comparison";
+import { fetchFlyerProducts, fetchMarkets, buildComparison } from "@/lib/comparison";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { detectDuplicates } from "@/lib/detect-duplicates.functions";
 import { runAutoMergeDuplicates } from "@/lib/auto-merge-duplicates.functions";
+import { pickHighlights, renderFlyerPng } from "@/lib/broadcast-flyer";
+
 
 export const Route = createFileRoute("/_authenticated/admin")({
   head: () => ({ meta: [{ title: "Admin — EncarteSaqua" }] }),
