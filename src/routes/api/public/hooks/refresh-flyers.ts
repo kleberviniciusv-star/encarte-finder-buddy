@@ -39,16 +39,15 @@ async function listFlyerImages(market: { slug: string; flyer_url: string }): Pro
   const html = await res.text();
 
   const found = new Set<string>();
-  const re = /(?:src|data-src|href)=["']([^"']+\.(?:jpe?g|png|webp))(?:\?[^"']*)?["']/gi;
+  const re = /(?:src|data-src|href)=["']([^"']+\.(?:jpe?g|png|webp|pdf))(?:\?[^"']*)?["']/gi;
   let m: RegExpExecArray | null;
   while ((m = re.exec(html))) {
     const url = absoluteUrl(m[1], market.flyer_url);
     const lower = url.toLowerCase();
 
     if (market.slug === "juzan") {
-      if (lower.includes("/uploads/encartes/")) found.add(url);
+      if (lower.includes("/uploads/encartes/") && !lower.endsWith(".pdf")) found.add(url);
     } else if (market.slug === "gomes") {
-      // Páginas do encarte do Gomes: wa_images/gomes ate ... .jpg
       if (
         lower.includes("/wa_images/") &&
         /gomes[^/]*\.(jpe?g|png|webp)$/.test(lower) &&
@@ -57,13 +56,16 @@ async function listFlyerImages(market: { slug: string; flyer_url: string }): Pro
       ) {
         found.add(url);
       }
+    } else if (market.slug === "rede-supermarket") {
+      // Rede publishes a PDF guide: guia-MM-MM.pdf
+      if (/\/guia-\d{2}-\d{2}\.pdf$/i.test(lower)) found.add(url);
     } else {
-      // Fallback genérico
       if (lower.match(/encarte|flyer|oferta/)) found.add(url);
     }
   }
   return Array.from(found);
 }
+
 
 /** Call Lovable AI Gateway (Gemini vision) to extract products from a flyer image. */
 async function extractProductsFromImage(imageUrl: string): Promise<ExtractedProduct[]> {
