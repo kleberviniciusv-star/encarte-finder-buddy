@@ -398,6 +398,106 @@ function AdminPage() {
           </div>
         )}
       </div>
+
+      {/* Broadcast section */}
+      <div className="mt-6 rounded-2xl border bg-card p-6 shadow-[var(--shadow-card)]">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" />
+              Encarte semanal para WhatsApp
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground max-w-md">
+              Gera uma imagem única (PNG) com as maiores promoções da semana e salva no histórico
+              de disparo.
+            </p>
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+              <Users className="h-3.5 w-3.5" />
+              {recipientsQ.data ?? 0} contato(s) inscritos para receber
+            </div>
+          </div>
+          <Button onClick={generateFlyer} disabled={generating} className="gap-2 shrink-0">
+            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+            {generating ? "Gerando…" : "Gerar encarte da semana"}
+          </Button>
+        </div>
+
+        {flyerPreview && (
+          <div className="mt-5 grid gap-4 sm:grid-cols-[220px_1fr]">
+            <img
+              src={flyerPreview.dataUrl}
+              alt="Prévia do encarte"
+              className="w-full rounded-xl border shadow-sm"
+            />
+            <div className="space-y-3">
+              <textarea
+                value={flyerPreview.caption}
+                onChange={(e) =>
+                  setFlyerPreview((p) => (p ? { ...p, caption: e.target.value } : p))
+                }
+                className="w-full min-h-[220px] rounded-xl border bg-background p-3 text-sm font-mono"
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={saveBroadcast} disabled={saving} className="gap-2">
+                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Salvar no histórico
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => downloadFlyer(flyerPreview.dataUrl, "preview")}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" /> Baixar PNG
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setFlyerPreview(null)}>
+                  Descartar
+                </Button>
+              </div>
+              <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <Send className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                O disparo automático por WhatsApp será liberado quando o provedor de mensagens for
+                conectado. Por enquanto o encarte é salvo no histórico e pode ser baixado.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {broadcastsQ.data && broadcastsQ.data.length > 0 && (
+          <div className="mt-6">
+            <h3 className="text-sm font-semibold mb-2">Histórico</h3>
+            <div className="divide-y rounded-xl border overflow-hidden">
+              {broadcastsQ.data.map((b) => (
+                <div key={b.id} className="flex items-center gap-3 px-3 py-2">
+                  <img
+                    src={b.image_data}
+                    alt=""
+                    className="h-14 w-8 rounded object-cover border shrink-0"
+                  />
+                  <div className="flex-1 min-w-0 text-xs">
+                    <div className="font-medium truncate">
+                      {new Date(b.created_at).toLocaleString("pt-BR")}
+                    </div>
+                    <div className="text-muted-foreground">
+                      {b.product_count} produto(s) • {b.recipient_count} contato(s)
+                      {b.sent_at ? " • enviado" : " • aguardando envio"}
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => downloadFlyer(b.image_data, b.id)}
+                    className="gap-1 shrink-0"
+                  >
+                    <Download className="h-3.5 w-3.5" /> PNG
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
