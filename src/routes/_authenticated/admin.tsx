@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { detectDuplicates } from "@/lib/detect-duplicates.functions";
 import { runAutoMergeDuplicates } from "@/lib/auto-merge-duplicates.functions";
-import { pickHighlights, renderFlyerPng } from "@/lib/broadcast-flyer";
+import { pickHighlights, renderFlyerPng, renderFlyerPdf, buildAllHighlights } from "@/lib/broadcast-flyer";
 
 
 export const Route = createFileRoute("/_authenticated/admin")({
