@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { detectDuplicates } from "@/lib/detect-duplicates.functions";
 import { runAutoMergeDuplicates } from "@/lib/auto-merge-duplicates.functions";
-import { pickHighlights, renderFlyerPng } from "@/lib/broadcast-flyer";
+import { pickHighlights, renderFlyerPng, renderFlyerPdf, buildAllHighlights } from "@/lib/broadcast-flyer";
 
 
 export const Route = createFileRoute("/_authenticated/admin")({
@@ -160,6 +160,39 @@ function AdminPage() {
     a.click();
   };
 
+  const [pdfBuilding, setPdfBuilding] = useState(false);
+  const downloadFullPdf = async () => {
+    if (!markets.length || !products.length) {
+      toast.error("Sem produtos para gerar o encarte.");
+      return;
+    }
+    setPdfBuilding(true);
+    try {
+      const comparison = buildComparison(markets, products);
+      const imagesByKey: Record<string, string | null> = {};
+      for (const p of products) {
+        if (p.image_url && !imagesByKey[p.product_key]) imagesByKey[p.product_key] = p.image_url;
+      }
+      const all = buildAllHighlights(comparison, markets, imagesByKey);
+      if (!all.length) {
+        toast.error("Nenhum produto disponível.");
+        return;
+      }
+      const { blob, filename } = await renderFlyerPdf(all);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast.success(`PDF gerado com ${all.length} produto(s).`);
+    } catch (err) {
+      toast.error("Falha ao gerar PDF: " + (err as Error).message);
+    } finally {
+      setPdfBuilding(false);
+    }
+  };
+
 
   const analyze = async () => {
     if (uniqueProducts.length === 0) {
@@ -257,13 +290,13 @@ function AdminPage() {
   const dismissed = pairs.filter((p) => p.dismissed);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight">Painel Admin</h1>
-        <p className="mt-1 text-muted-foreground">Ferramentas de gestão dos encartes.</p>
+    <div className="mx-auto max-w-3xl px-3 sm:px-4 py-6 sm:py-10">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Painel Admin</h1>
+        <p className="mt-1 text-sm sm:text-base text-muted-foreground">Ferramentas de gestão dos encartes.</p>
       </div>
 
-      <div className="rounded-2xl border bg-card p-6 shadow-[var(--shadow-card)]">
+      <div className="rounded-2xl border bg-card p-4 sm:p-6 shadow-[var(--shadow-card)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
@@ -403,42 +436,48 @@ function AdminPage() {
       </div>
 
       {/* Broadcast section */}
-      <div className="mt-6 rounded-2xl border bg-card p-6 shadow-[var(--shadow-card)]">
+      <div className="mt-6 rounded-2xl border bg-card p-4 sm:p-6 shadow-[var(--shadow-card)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div>
+          <div className="min-w-0">
             <h2 className="text-lg font-semibold flex items-center gap-2">
-              <ImageIcon className="h-5 w-5 text-primary" />
-              Encarte semanal para WhatsApp
+              <ImageIcon className="h-5 w-5 text-primary shrink-0" />
+              <span className="truncate">Encarte semanal</span>
             </h2>
-            <p className="mt-1 text-sm text-muted-foreground max-w-md">
-              Gera uma imagem única (PNG) com as maiores promoções da semana e salva no histórico
-              de disparo.
+            <p className="mt-1 text-sm text-muted-foreground">
+              Gere um <strong>PDF completo</strong> com todos os produtos e imagens (estilo encarte
+              de mercado) ou um <strong>PNG resumido</strong> com os destaques para WhatsApp.
             </p>
             <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
               <Users className="h-3.5 w-3.5" />
-              {recipientsQ.data ?? 0} contato(s) inscritos para receber
+              {recipientsQ.data ?? 0} contato(s) inscritos
             </div>
           </div>
-          <Button onClick={generateFlyer} disabled={generating} className="gap-2 shrink-0">
-            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
-            {generating ? "Gerando…" : "Gerar encarte da semana"}
-          </Button>
+          <div className="flex flex-col gap-2 sm:items-end shrink-0">
+            <Button onClick={downloadFullPdf} disabled={pdfBuilding} className="gap-2 w-full sm:w-auto">
+              {pdfBuilding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {pdfBuilding ? "Gerando PDF…" : "Baixar PDF completo"}
+            </Button>
+            <Button onClick={generateFlyer} disabled={generating} variant="outline" size="sm" className="gap-2 w-full sm:w-auto">
+              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+              {generating ? "Gerando…" : "Prévia PNG (WhatsApp)"}
+            </Button>
+          </div>
         </div>
 
         {flyerPreview && (
-          <div className="mt-5 grid gap-4 sm:grid-cols-[220px_1fr]">
+          <div className="mt-5 grid gap-4 sm:grid-cols-[180px_1fr]">
             <img
               src={flyerPreview.dataUrl}
               alt="Prévia do encarte"
-              className="w-full rounded-xl border shadow-sm"
+              className="mx-auto sm:mx-0 w-40 sm:w-full max-h-[320px] sm:max-h-none object-contain rounded-xl border shadow-sm"
             />
-            <div className="space-y-3">
+            <div className="space-y-3 min-w-0">
               <textarea
                 value={flyerPreview.caption}
                 onChange={(e) =>
                   setFlyerPreview((p) => (p ? { ...p, caption: e.target.value } : p))
                 }
-                className="w-full min-h-[220px] rounded-xl border bg-background p-3 text-sm font-mono"
+                className="w-full min-h-[180px] sm:min-h-[220px] rounded-xl border bg-background p-3 text-xs sm:text-sm font-mono"
               />
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" onClick={saveBroadcast} disabled={saving} className="gap-2">
