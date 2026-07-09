@@ -160,6 +160,39 @@ function AdminPage() {
     a.click();
   };
 
+  const [pdfBuilding, setPdfBuilding] = useState(false);
+  const downloadFullPdf = async () => {
+    if (!markets.length || !products.length) {
+      toast.error("Sem produtos para gerar o encarte.");
+      return;
+    }
+    setPdfBuilding(true);
+    try {
+      const comparison = buildComparison(markets, products);
+      const imagesByKey: Record<string, string | null> = {};
+      for (const p of products) {
+        if (p.image_url && !imagesByKey[p.product_key]) imagesByKey[p.product_key] = p.image_url;
+      }
+      const all = buildAllHighlights(comparison, markets, imagesByKey);
+      if (!all.length) {
+        toast.error("Nenhum produto disponível.");
+        return;
+      }
+      const { blob, filename } = await renderFlyerPdf(all);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast.success(`PDF gerado com ${all.length} produto(s).`);
+    } catch (err) {
+      toast.error("Falha ao gerar PDF: " + (err as Error).message);
+    } finally {
+      setPdfBuilding(false);
+    }
+  };
+
 
   const analyze = async () => {
     if (uniqueProducts.length === 0) {
