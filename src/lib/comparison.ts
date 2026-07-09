@@ -19,6 +19,7 @@ export type FlyerProduct = {
   unit: string | null;
   price: number;
   valid_until: string | null;
+  image_url: string | null;
 };
 
 export type ComparisonRow = {
