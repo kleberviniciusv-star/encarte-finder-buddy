@@ -290,13 +290,13 @@ function AdminPage() {
   const dismissed = pairs.filter((p) => p.dismissed);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight">Painel Admin</h1>
-        <p className="mt-1 text-muted-foreground">Ferramentas de gestão dos encartes.</p>
+    <div className="mx-auto max-w-3xl px-3 sm:px-4 py-6 sm:py-10">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Painel Admin</h1>
+        <p className="mt-1 text-sm sm:text-base text-muted-foreground">Ferramentas de gestão dos encartes.</p>
       </div>
 
-      <div className="rounded-2xl border bg-card p-6 shadow-[var(--shadow-card)]">
+      <div className="rounded-2xl border bg-card p-4 sm:p-6 shadow-[var(--shadow-card)]">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold flex items-center gap-2">
