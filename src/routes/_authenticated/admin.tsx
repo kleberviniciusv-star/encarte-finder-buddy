@@ -112,8 +112,11 @@ function AdminPage() {
     setGenerating(true);
     try {
       const comparison = buildComparison(markets, products);
-      const marketNames = Object.fromEntries(markets.map((m) => [m.slug, m.name]));
-      const highlights = pickHighlights(comparison, marketNames, 12);
+      const imagesByKey: Record<string, string | null> = {};
+      for (const p of products) {
+        if (p.image_url && !imagesByKey[p.product_key]) imagesByKey[p.product_key] = p.image_url;
+      }
+      const highlights = pickHighlights(comparison, markets, imagesByKey, 12);
       if (!highlights.length) {
         toast.error("Nenhuma comparação disponível para destacar.");
         return;
