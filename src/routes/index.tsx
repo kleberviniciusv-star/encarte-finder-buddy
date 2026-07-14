@@ -316,7 +316,7 @@ function Index() {
             return (
               <>
                 {compared.map((row) => (
-                  <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                  <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
                 ))}
                 {others.length > 0 && (
                   <>
@@ -326,7 +326,7 @@ function Index() {
                       <div className="h-px flex-1 bg-border" />
                     </div>
                     {others.map((row) => (
-                      <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                      <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
                     ))}
                   </>
                 )}
