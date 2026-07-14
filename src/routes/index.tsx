@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, TrendingDown, Sparkles, Plus, Check, RefreshCw, X, Merge, Link2, ChevronDown, ChevronUp } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
