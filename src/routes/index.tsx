@@ -375,20 +375,25 @@ function MobileCard({ row, markets, isAdmin, onMerge, compact }: {
   return (
     <div className="mb-2 rounded-xl border bg-card overflow-hidden shadow-[var(--shadow-card)]">
       {/* Linha principal */}
-      <div className="flex items-center gap-3 px-3 py-3">
+      <div className={"flex items-center gap-3 px-3 " + (compact ? "py-2" : "py-3")}>
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm leading-tight">{row.name}</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{row.category}{row.unit ? ` • ${row.unit}` : ""}</div>
+          <div className={"font-medium leading-tight " + (compact ? "text-[13px]" : "text-sm")}>{row.name}</div>
+          {!compact && (
+            <div className="mt-0.5 text-xs text-muted-foreground">{row.category}{row.unit ? ` • ${row.unit}` : ""}</div>
+          )}
         </div>
 
         {/* Melhor preço */}
         {bestMarket && (
           <div className="text-right shrink-0">
-            <div className="text-xs text-muted-foreground">{bestMarket.name}</div>
+            {!compact && <div className="text-xs text-muted-foreground">{bestMarket.name}</div>}
             <div className="flex items-center gap-1 text-success font-bold text-sm tabular-nums">
               <TrendingDown className="h-3 w-3" />
               {brl(row.bestPrice!)}
             </div>
+            {compact && (
+              <div className="text-[10px] leading-none text-muted-foreground truncate max-w-[90px]">{bestMarket.name}</div>
+            )}
           </div>
         )}
 
