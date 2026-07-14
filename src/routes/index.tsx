@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search, TrendingDown, Sparkles, Plus, Check, RefreshCw, X, Merge, Link2, ChevronDown, ChevronUp } from "lucide-react";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -235,8 +235,8 @@ function Index() {
           </div>
         </div>
 
-        {/* Modo compacto — mobile only */}
-        <div className="mt-3 flex items-center justify-between sm:hidden">
+        {/* Modo compacto */}
+        <div className="mt-3 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
             {filtered.length} {filtered.length === 1 ? "produto" : "produtos"}
           </span>
@@ -256,60 +256,15 @@ function Index() {
           </div>
         )}
 
-        {/* Tabela — desktop only */}
-        <div className="mt-4 hidden sm:block overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-card)]">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Produto</th>
-                  {markets.map((m) => (
-                    <th key={m.id} className="px-4 py-3 text-right">{m.name}</th>
-                  ))}
-                  <th className="px-4 py-3 text-right">Melhor</th>
-                  <th className="px-4 py-3" />
-                  {isAdmin && <th className="px-4 py-3 text-center">Unir</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((row, i) => {
-                  const prev = filtered[i - 1];
-                  const showDivider = row.marketCount < 2 && (!prev || prev.marketCount >= 2);
-                  return (
-                    <Fragment key={row.product_key}>
-                      {showDivider && (
-                        <tr className="bg-muted/40">
-                          <td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Outros produtos dos encartes (sem comparação)
-                          </td>
-                        </tr>
-                      )}
-                      <DesktopRow row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
-                    </Fragment>
-                  );
-                })}
-                {!filtered.length && (
-                  <tr>
-                    <td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-12 text-center text-muted-foreground">
-                      {productsQ.isLoading ? "Carregando encartes…" : "Nenhum produto encontrado."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Cards — mobile only */}
-        <div className="mt-4 sm:hidden">
+        {/* Cards — padronizado para todos os viewports */}
+        <div className="mt-4 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           {productsQ.isLoading && (
-            <div className="py-12 text-center text-muted-foreground text-sm">Carregando encartes…</div>
+            <div className="py-12 text-center text-muted-foreground text-sm sm:col-span-2 lg:col-span-3">Carregando encartes…</div>
           )}
           {!productsQ.isLoading && filtered.length === 0 && (
-            <div className="py-12 text-center text-muted-foreground text-sm">Nenhum produto encontrado.</div>
+            <div className="py-12 text-center text-muted-foreground text-sm sm:col-span-2 lg:col-span-3">Nenhum produto encontrado.</div>
           )}
 
-          {/* Divider for non-compared */}
           {(() => {
             const compared = filtered.filter((r) => r.marketCount >= 2);
             const others = filtered.filter((r) => r.marketCount < 2);
@@ -320,7 +275,7 @@ function Index() {
                 ))}
                 {others.length > 0 && (
                   <>
-                    <div className="my-3 flex items-center gap-2">
+                    <div className="my-3 flex items-center gap-2 sm:col-span-2 lg:col-span-3">
                       <div className="h-px flex-1 bg-border" />
                       <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground px-2">Sem comparação</span>
                       <div className="h-px flex-1 bg-border" />
@@ -473,74 +428,6 @@ function MobileCard({ row, markets, isAdmin, onMerge, compact }: {
   );
 }
 
-/* ── Linha desktop ── */
-function DesktopRow({ row, markets, isAdmin, onMerge }: {
-  row: ComparisonRow; markets: Market[]; isAdmin: boolean; onMerge: (r: ComparisonRow) => void;
-}) {
-  const [added, setAdded] = useState(false);
-  const addToList = async () => {
-    const { data: sess } = await supabase.auth.getSession();
-    if (!sess.session) {
-      toast.error("Faça login para salvar sua lista", {
-        action: { label: "Entrar", onClick: () => (window.location.href = "/auth") },
-      });
-      return;
-    }
-    const { error } = await supabase.from("shopping_list_items").insert({
-      user_id: sess.session.user.id, product_key: row.product_key, product_name: row.name, quantity: 1,
-    });
-    if (error) toast.error("Não foi possível adicionar");
-    else {
-      setAdded(true);
-      toast.success(`${row.name} adicionado à lista`);
-      setTimeout(() => setAdded(false), 1500);
-    }
-  };
-
-  return (
-    <tr className="border-t hover:bg-muted/30">
-      <td className="px-4 py-3">
-        <div className="font-medium">{row.name}</div>
-        <div className="text-xs text-muted-foreground">{row.category} • {row.unit}</div>
-      </td>
-      {markets.map((m) => {
-        const price = row.prices[m.slug];
-        const isBest = m.slug === row.bestMarketSlug;
-        return (
-          <td key={m.id} className="px-4 py-3 text-right">
-            {price === null
-              ? <span className="text-xs text-muted-foreground">—</span>
-              : <span className={"inline-flex items-center gap-1 rounded-md px-2 py-1 tabular-nums " + (isBest ? "bg-success/15 font-semibold text-success" : "text-foreground/80")}>
-                  {isBest && <TrendingDown className="h-3 w-3" />}
-                  {brl(price)}
-                </span>
-            }
-          </td>
-        );
-      })}
-      <td className="px-4 py-3 text-right">
-        {row.bestMarketSlug && (
-          <div>
-            <div className="text-xs text-muted-foreground">{markets.find((m) => m.slug === row.bestMarketSlug)?.name}</div>
-            <div className="font-bold text-success tabular-nums">{brl(row.bestPrice!)}</div>
-          </div>
-        )}
-      </td>
-      <td className="px-4 py-3 text-right">
-        <Button size="sm" variant={added ? "secondary" : "outline"} onClick={addToList}>
-          {added ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-        </Button>
-      </td>
-      {isAdmin && (
-        <td className="px-4 py-3 text-center">
-          <Button size="sm" variant="ghost" title="Unir duplicado" onClick={() => onMerge(row)} className="text-muted-foreground hover:text-primary">
-            <Merge className="h-4 w-4" />
-          </Button>
-        </td>
-      )}
-    </tr>
-  );
-}
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
