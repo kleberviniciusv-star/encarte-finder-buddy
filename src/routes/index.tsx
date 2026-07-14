@@ -334,7 +334,7 @@ function MobileCard({ row, markets, isAdmin, onMerge, compact }: {
   const bestMarket = markets.find((m) => m.slug === row.bestMarketSlug);
 
   return (
-    <div className="mb-2.5 rounded-2xl border bg-card overflow-hidden shadow-[var(--shadow-card)]">
+    <div className="mb-2.5 rounded-2xl border bg-card overflow-hidden shadow-[var(--shadow-card)] sm:hidden">
       {/* Cabeçalho: produto + melhor preço */}
       <div className={"px-3 " + (compact ? "py-2.5" : "py-3")}>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
