@@ -42,6 +42,7 @@ function Index() {
   const [mergeTarget, setMergeTarget] = useState<ComparisonRow | null>(null);
   const [mergeSearch, setMergeSearch] = useState("");
   const [merging, setMerging] = useState(false);
+  const [compact, setCompact] = useState(true);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -234,6 +235,20 @@ function Index() {
           </div>
         </div>
 
+        {/* Modo compacto — mobile only */}
+        <div className="mt-3 flex items-center justify-between sm:hidden">
+          <span className="text-xs text-muted-foreground">
+            {filtered.length} {filtered.length === 1 ? "produto" : "produtos"}
+          </span>
+          <button
+            onClick={() => setCompact((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-medium hover:bg-muted"
+          >
+            {compact ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+            {compact ? "Modo compacto" : "Modo detalhado"}
+          </button>
+        </div>
+
         {isAdmin && (
           <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             <Merge className="h-3.5 w-3.5 shrink-0" />
@@ -301,7 +316,7 @@ function Index() {
             return (
               <>
                 {compared.map((row) => (
-                  <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                  <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
                 ))}
                 {others.length > 0 && (
                   <>
@@ -311,7 +326,7 @@ function Index() {
                       <div className="h-px flex-1 bg-border" />
                     </div>
                     {others.map((row) => (
-                      <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                      <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
                     ))}
                   </>
                 )}
@@ -330,8 +345,8 @@ function Index() {
 }
 
 /* ── Card mobile ── */
-function MobileCard({ row, markets, isAdmin, onMerge }: {
-  row: ComparisonRow; markets: Market[]; isAdmin: boolean; onMerge: (r: ComparisonRow) => void;
+function MobileCard({ row, markets, isAdmin, onMerge, compact }: {
+  row: ComparisonRow; markets: Market[]; isAdmin: boolean; onMerge: (r: ComparisonRow) => void; compact?: boolean;
 }) {
   const [added, setAdded] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -360,20 +375,25 @@ function MobileCard({ row, markets, isAdmin, onMerge }: {
   return (
     <div className="mb-2 rounded-xl border bg-card overflow-hidden shadow-[var(--shadow-card)]">
       {/* Linha principal */}
-      <div className="flex items-center gap-3 px-3 py-3">
+      <div className={"flex items-center gap-3 px-3 " + (compact ? "py-2" : "py-3")}>
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm leading-tight">{row.name}</div>
-          <div className="mt-0.5 text-xs text-muted-foreground">{row.category}{row.unit ? ` • ${row.unit}` : ""}</div>
+          <div className={"font-medium leading-tight " + (compact ? "text-[13px]" : "text-sm")}>{row.name}</div>
+          {!compact && (
+            <div className="mt-0.5 text-xs text-muted-foreground">{row.category}{row.unit ? ` • ${row.unit}` : ""}</div>
+          )}
         </div>
 
         {/* Melhor preço */}
         {bestMarket && (
           <div className="text-right shrink-0">
-            <div className="text-xs text-muted-foreground">{bestMarket.name}</div>
+            {!compact && <div className="text-xs text-muted-foreground">{bestMarket.name}</div>}
             <div className="flex items-center gap-1 text-success font-bold text-sm tabular-nums">
               <TrendingDown className="h-3 w-3" />
               {brl(row.bestPrice!)}
             </div>
+            {compact && (
+              <div className="text-[10px] leading-none text-muted-foreground truncate max-w-[90px]">{bestMarket.name}</div>
+            )}
           </div>
         )}
 
