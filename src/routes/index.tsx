@@ -42,6 +42,7 @@ function Index() {
   const [mergeTarget, setMergeTarget] = useState<ComparisonRow | null>(null);
   const [mergeSearch, setMergeSearch] = useState("");
   const [merging, setMerging] = useState(false);
+  const [compact, setCompact] = useState(true);
   const queryClient = useQueryClient();
 
   useEffect(() => {
