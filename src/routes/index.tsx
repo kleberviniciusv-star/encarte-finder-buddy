@@ -256,7 +256,7 @@ function Index() {
           </div>
         )}
 
-        {/* Cards — padronizado para todos os viewports */}
+        {/* Cards — mobile: novo layout compacto; desktop: linha detalhada */}
         <div className="mt-4 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           {productsQ.isLoading && (
             <div className="py-12 text-center text-muted-foreground text-sm sm:col-span-2 lg:col-span-3">Carregando encartes…</div>
@@ -271,7 +271,10 @@ function Index() {
             return (
               <>
                 {compared.map((row) => (
-                  <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
+                  <div key={row.product_key}>
+                    <MobileCard row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
+                    <DesktopRow row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                  </div>
                 ))}
                 {others.length > 0 && (
                   <>
@@ -281,7 +284,10 @@ function Index() {
                       <div className="h-px flex-1 bg-border" />
                     </div>
                     {others.map((row) => (
-                      <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
+                      <div key={row.product_key}>
+                        <MobileCard row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
+                        <DesktopRow row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                      </div>
                     ))}
                   </>
                 )}
