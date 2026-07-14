@@ -398,25 +398,42 @@ function MobileCard({ row, markets, isAdmin, onMerge }: {
         </div>
       </div>
 
-      {/* Preços expandidos */}
+      {/* Preços expandidos — lista vertical, ordenada do menor para o maior */}
       {expanded && (
-        <div className="border-t bg-muted/30 px-3 py-2 grid grid-cols-3 gap-2">
-          {markets.map((m) => {
-            const price = row.prices[m.slug];
-            const isBest = m.slug === row.bestMarketSlug;
-            return (
-              <div key={m.id} className={"rounded-lg px-2 py-1.5 text-center " + (isBest ? "bg-success/10" : "")}>
-                <div className="flex items-center justify-center gap-1 mb-0.5">
-                  <span className="h-1.5 w-1.5 rounded-full shrink-0" style={{ backgroundColor: m.logo_color }} />
-                  <span className="text-xs text-muted-foreground truncate">{m.name}</span>
+        <div className="border-t bg-muted/30 divide-y divide-border/60">
+          {markets
+            .map((m) => ({ m, price: row.prices[m.slug] }))
+            .sort((a, b) => {
+              if (a.price === null && b.price === null) return 0;
+              if (a.price === null) return 1;
+              if (b.price === null) return -1;
+              return a.price - b.price;
+            })
+            .map(({ m, price }) => {
+              const isBest = m.slug === row.bestMarketSlug;
+              return (
+                <div
+                  key={m.id}
+                  className={"flex items-center gap-2 px-3 py-2 " + (isBest ? "bg-success/10" : "")}
+                >
+                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: m.logo_color }} />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{m.name}</span>
+                  {price === null ? (
+                    <span className="shrink-0 text-xs text-muted-foreground">sem oferta</span>
+                  ) : (
+                    <span
+                      className={
+                        "shrink-0 tabular-nums text-sm " +
+                        (isBest ? "font-bold text-success" : "font-semibold text-foreground/80")
+                      }
+                    >
+                      {isBest && <TrendingDown className="mr-0.5 -mt-0.5 inline h-3 w-3" />}
+                      {brl(price)}
+                    </span>
+                  )}
                 </div>
-                {price === null
-                  ? <span className="text-xs text-muted-foreground">—</span>
-                  : <span className={"text-xs font-semibold tabular-nums " + (isBest ? "text-success" : "")}>{brl(price)}</span>
-                }
-              </div>
-            );
-          })}
+              );
+            })}
         </div>
       )}
     </div>
