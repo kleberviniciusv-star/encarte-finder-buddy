@@ -235,8 +235,8 @@ function Index() {
           </div>
         </div>
 
-        {/* Modo compacto */}
-        <div className="mt-3 flex items-center justify-between">
+        {/* Modo compacto — apenas mobile */}
+        <div className="mt-3 flex items-center justify-between sm:hidden">
           <span className="text-xs text-muted-foreground">
             {filtered.length} {filtered.length === 1 ? "produto" : "produtos"}
           </span>
