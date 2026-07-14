@@ -235,8 +235,8 @@ function Index() {
           </div>
         </div>
 
-        {/* Modo compacto — mobile only */}
-        <div className="mt-3 flex items-center justify-between sm:hidden">
+        {/* Modo compacto */}
+        <div className="mt-3 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">
             {filtered.length} {filtered.length === 1 ? "produto" : "produtos"}
           </span>
@@ -256,60 +256,15 @@ function Index() {
           </div>
         )}
 
-        {/* Tabela — desktop only */}
-        <div className="mt-4 hidden sm:block overflow-hidden rounded-2xl border bg-card shadow-[var(--shadow-card)]">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/60 text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Produto</th>
-                  {markets.map((m) => (
-                    <th key={m.id} className="px-4 py-3 text-right">{m.name}</th>
-                  ))}
-                  <th className="px-4 py-3 text-right">Melhor</th>
-                  <th className="px-4 py-3" />
-                  {isAdmin && <th className="px-4 py-3 text-center">Unir</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((row, i) => {
-                  const prev = filtered[i - 1];
-                  const showDivider = row.marketCount < 2 && (!prev || prev.marketCount >= 2);
-                  return (
-                    <Fragment key={row.product_key}>
-                      {showDivider && (
-                        <tr className="bg-muted/40">
-                          <td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Outros produtos dos encartes (sem comparação)
-                          </td>
-                        </tr>
-                      )}
-                      <DesktopRow row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
-                    </Fragment>
-                  );
-                })}
-                {!filtered.length && (
-                  <tr>
-                    <td colSpan={markets.length + 3 + (isAdmin ? 1 : 0)} className="px-4 py-12 text-center text-muted-foreground">
-                      {productsQ.isLoading ? "Carregando encartes…" : "Nenhum produto encontrado."}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Cards — mobile only */}
-        <div className="mt-4 sm:hidden">
+        {/* Cards — padronizado para todos os viewports */}
+        <div className="mt-4 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           {productsQ.isLoading && (
-            <div className="py-12 text-center text-muted-foreground text-sm">Carregando encartes…</div>
+            <div className="py-12 text-center text-muted-foreground text-sm sm:col-span-2 lg:col-span-3">Carregando encartes…</div>
           )}
           {!productsQ.isLoading && filtered.length === 0 && (
-            <div className="py-12 text-center text-muted-foreground text-sm">Nenhum produto encontrado.</div>
+            <div className="py-12 text-center text-muted-foreground text-sm sm:col-span-2 lg:col-span-3">Nenhum produto encontrado.</div>
           )}
 
-          {/* Divider for non-compared */}
           {(() => {
             const compared = filtered.filter((r) => r.marketCount >= 2);
             const others = filtered.filter((r) => r.marketCount < 2);
@@ -320,7 +275,7 @@ function Index() {
                 ))}
                 {others.length > 0 && (
                   <>
-                    <div className="my-3 flex items-center gap-2">
+                    <div className="my-3 flex items-center gap-2 sm:col-span-2 lg:col-span-3">
                       <div className="h-px flex-1 bg-border" />
                       <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground px-2">Sem comparação</span>
                       <div className="h-px flex-1 bg-border" />
