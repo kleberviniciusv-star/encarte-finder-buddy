@@ -345,8 +345,8 @@ function Index() {
 }
 
 /* ── Card mobile ── */
-function MobileCard({ row, markets, isAdmin, onMerge }: {
-  row: ComparisonRow; markets: Market[]; isAdmin: boolean; onMerge: (r: ComparisonRow) => void;
+function MobileCard({ row, markets, isAdmin, onMerge, compact }: {
+  row: ComparisonRow; markets: Market[]; isAdmin: boolean; onMerge: (r: ComparisonRow) => void; compact?: boolean;
 }) {
   const [added, setAdded] = useState(false);
   const [expanded, setExpanded] = useState(false);
