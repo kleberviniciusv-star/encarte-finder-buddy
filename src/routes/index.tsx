@@ -235,6 +235,20 @@ function Index() {
           </div>
         </div>
 
+        {/* Modo compacto — mobile only */}
+        <div className="mt-3 flex items-center justify-between sm:hidden">
+          <span className="text-xs text-muted-foreground">
+            {filtered.length} {filtered.length === 1 ? "produto" : "produtos"}
+          </span>
+          <button
+            onClick={() => setCompact((v) => !v)}
+            className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs font-medium hover:bg-muted"
+          >
+            {compact ? <ChevronDown className="h-3 w-3" /> : <ChevronUp className="h-3 w-3" />}
+            {compact ? "Modo compacto" : "Modo detalhado"}
+          </button>
+        </div>
+
         {isAdmin && (
           <div className="mt-3 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
             <Merge className="h-3.5 w-3.5 shrink-0" />
