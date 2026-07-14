@@ -235,8 +235,8 @@ function Index() {
           </div>
         </div>
 
-        {/* Modo compacto */}
-        <div className="mt-3 flex items-center justify-between">
+        {/* Modo compacto — apenas mobile */}
+        <div className="mt-3 flex items-center justify-between sm:hidden">
           <span className="text-xs text-muted-foreground">
             {filtered.length} {filtered.length === 1 ? "produto" : "produtos"}
           </span>
@@ -256,7 +256,7 @@ function Index() {
           </div>
         )}
 
-        {/* Cards — padronizado para todos os viewports */}
+        {/* Cards — mobile: novo layout compacto; desktop: linha detalhada */}
         <div className="mt-4 sm:mt-6 sm:grid sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
           {productsQ.isLoading && (
             <div className="py-12 text-center text-muted-foreground text-sm sm:col-span-2 lg:col-span-3">Carregando encartes…</div>
@@ -271,7 +271,10 @@ function Index() {
             return (
               <>
                 {compared.map((row) => (
-                  <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
+                  <div key={row.product_key}>
+                    <MobileCard row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
+                    <DesktopRow row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                  </div>
                 ))}
                 {others.length > 0 && (
                   <>
@@ -281,7 +284,10 @@ function Index() {
                       <div className="h-px flex-1 bg-border" />
                     </div>
                     {others.map((row) => (
-                      <MobileCard key={row.product_key} row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
+                      <div key={row.product_key}>
+                        <MobileCard row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} compact={compact} />
+                        <DesktopRow row={row} markets={markets} isAdmin={isAdmin} onMerge={openMergeModal} />
+                      </div>
                     ))}
                   </>
                 )}
@@ -328,7 +334,7 @@ function MobileCard({ row, markets, isAdmin, onMerge, compact }: {
   const bestMarket = markets.find((m) => m.slug === row.bestMarketSlug);
 
   return (
-    <div className="mb-2.5 rounded-2xl border bg-card overflow-hidden shadow-[var(--shadow-card)]">
+    <div className="mb-2.5 rounded-2xl border bg-card overflow-hidden shadow-[var(--shadow-card)] sm:hidden">
       {/* Cabeçalho: produto + melhor preço */}
       <div className={"px-3 " + (compact ? "py-2.5" : "py-3")}>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
@@ -428,6 +434,89 @@ function MobileCard({ row, markets, isAdmin, onMerge, compact }: {
   );
 }
 
+
+function DesktopRow({ row, markets, isAdmin, onMerge }: {
+  row: ComparisonRow; markets: Market[]; isAdmin: boolean; onMerge: (r: ComparisonRow) => void;
+}) {
+  const [added, setAdded] = useState(false);
+
+  const addToList = async () => {
+    const { data: sess } = await supabase.auth.getSession();
+    if (!sess.session) {
+      toast.error("Faça login para salvar sua lista", {
+        action: { label: "Entrar", onClick: () => (window.location.href = "/auth") },
+      });
+      return;
+    }
+    const { error } = await supabase.from("shopping_list_items").insert({
+      user_id: sess.session.user.id, product_key: row.product_key, product_name: row.name, quantity: 1,
+    });
+    if (error) toast.error("Não foi possível adicionar");
+    else {
+      setAdded(true);
+      toast.success(`${row.name} adicionado à lista`);
+      setTimeout(() => setAdded(false), 1500);
+    }
+  };
+
+  return (
+    <div className="hidden sm:flex rounded-2xl border bg-card p-4 items-center gap-4 shadow-[var(--shadow-card)]">
+      <div className="flex-1 min-w-0">
+        <div className="font-medium text-sm">{row.name}</div>
+        <div className="mt-0.5 text-xs text-muted-foreground">{row.category}{row.unit ? ` • ${row.unit}` : ""}</div>
+        {row.bestPrice && row.worstPrice && row.bestPrice < row.worstPrice && (
+          <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-success font-medium">
+            <TrendingDown className="h-3 w-3" />
+            Economia de {brl(row.worstPrice - row.bestPrice)}
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-end gap-2 shrink-0 max-w-[60%]">
+        {markets
+          .map((m) => ({ m, price: row.prices[m.slug] }))
+          .sort((a, b) => {
+            if (a.price === null && b.price === null) return 0;
+            if (a.price === null) return 1;
+            if (b.price === null) return -1;
+            return a.price - b.price;
+          })
+          .map(({ m, price }) => {
+            const isBest = m.slug === row.bestMarketSlug;
+            return (
+              <div
+                key={m.id}
+                className={
+                  "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm " +
+                  (isBest ? "border-success/30 bg-success/10" : "bg-muted/40")
+                }
+              >
+                <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: m.logo_color }} />
+                <span className="text-xs text-muted-foreground truncate max-w-[90px]">{m.name}</span>
+                <span className={"tabular-nums font-semibold " + (isBest ? "text-success" : "text-foreground/80")}>
+                  {price === null ? "—" : brl(price)}
+                </span>
+              </div>
+            );
+          })}
+      </div>
+
+      <div className="flex items-center gap-1 shrink-0">
+        {isAdmin && (
+          <button onClick={() => onMerge(row)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:text-primary hover:bg-muted">
+            <Merge className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          onClick={addToList}
+          className={"grid h-8 w-8 place-items-center rounded-lg border transition " + (added ? "bg-success/10 border-success/30 text-success" : "bg-card text-muted-foreground hover:text-foreground")}
+        >
+          {added ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
