@@ -373,48 +373,61 @@ function MobileCard({ row, markets, isAdmin, onMerge, compact }: {
   const bestMarket = markets.find((m) => m.slug === row.bestMarketSlug);
 
   return (
-    <div className="mb-2 rounded-xl border bg-card overflow-hidden shadow-[var(--shadow-card)]">
-      {/* Linha principal */}
-      <div className={"flex items-center gap-3 px-3 " + (compact ? "py-2" : "py-3")}>
-        <div className="flex-1 min-w-0">
-          <div className={"font-medium leading-tight " + (compact ? "text-[13px]" : "text-sm")}>{row.name}</div>
-          {!compact && (
-            <div className="mt-0.5 text-xs text-muted-foreground">{row.category}{row.unit ? ` • ${row.unit}` : ""}</div>
+    <div className="mb-2.5 rounded-2xl border bg-card overflow-hidden shadow-[var(--shadow-card)]">
+      {/* Cabeçalho: produto + melhor preço */}
+      <div className={"px-3 " + (compact ? "py-2.5" : "py-3")}>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+          <div className="min-w-0">
+            <div className={"font-medium leading-snug " + (compact ? "text-[13px]" : "text-sm")}>{row.name}</div>
+            {!compact && (
+              <div className="mt-0.5 text-xs text-muted-foreground">{row.category}{row.unit ? ` • ${row.unit}` : ""}</div>
+            )}
+          </div>
+
+          {bestMarket && (
+            <div className="shrink-0 text-right min-w-0">
+              {!compact && <div className="text-[11px] leading-tight text-muted-foreground truncate max-w-[110px]">{bestMarket.name}</div>}
+              <div className="flex items-center justify-end gap-1 text-success font-bold text-sm tabular-nums leading-tight">
+                <TrendingDown className="h-3 w-3 shrink-0" />
+                {brl(row.bestPrice!)}
+              </div>
+              {compact && (
+                <div className="text-[10px] leading-none text-muted-foreground truncate max-w-[90px]">{bestMarket.name}</div>
+              )}
+            </div>
           )}
         </div>
 
-        {/* Melhor preço */}
-        {bestMarket && (
-          <div className="text-right shrink-0">
-            {!compact && <div className="text-xs text-muted-foreground">{bestMarket.name}</div>}
-            <div className="flex items-center gap-1 text-success font-bold text-sm tabular-nums">
-              <TrendingDown className="h-3 w-3" />
-              {brl(row.bestPrice!)}
+        {/* Barra de ações — linha separada para nunca comprimir o nome */}
+        <div className="mt-2.5 flex items-center justify-between gap-2">
+          {row.marketCount >= 2 ? (
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border bg-muted/40 px-2 py-1.5 text-xs font-medium text-foreground/80 hover:bg-muted min-w-0"
+            >
+              {expanded ? <ChevronUp className="h-3.5 w-3.5 shrink-0" /> : <ChevronDown className="h-3.5 w-3.5 shrink-0" />}
+              <span className="truncate">{expanded ? "Ocultar preços" : "Ver preços dos mercados"}</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 rounded-lg bg-muted/30 px-2 py-1.5 text-xs text-muted-foreground">
+              <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40" />
+              Apenas um mercado
             </div>
-            {compact && (
-              <div className="text-[10px] leading-none text-muted-foreground truncate max-w-[90px]">{bestMarket.name}</div>
-            )}
-          </div>
-        )}
+          )}
 
-        {/* Ações */}
-        <div className="flex items-center gap-1 shrink-0">
-          {isAdmin && (
-            <button onClick={() => onMerge(row)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:text-primary hover:bg-muted">
-              <Merge className="h-4 w-4" />
+          <div className="flex items-center gap-1 shrink-0">
+            {isAdmin && (
+              <button onClick={() => onMerge(row)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:text-primary hover:bg-muted">
+                <Merge className="h-4 w-4" />
+              </button>
+            )}
+            <button
+              onClick={addToList}
+              className={"grid h-8 w-8 place-items-center rounded-lg border transition " + (added ? "bg-success/10 border-success/30 text-success" : "bg-card text-muted-foreground hover:text-foreground")}
+            >
+              {added ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
             </button>
-          )}
-          <button
-            onClick={addToList}
-            className={"grid h-8 w-8 place-items-center rounded-lg border transition " + (added ? "bg-success/10 border-success/30 text-success" : "bg-card text-muted-foreground hover:text-foreground")}
-          >
-            {added ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          </button>
-          {row.marketCount >= 2 && (
-            <button onClick={() => setExpanded((v) => !v)} className="grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted">
-              {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-          )}
+          </div>
         </div>
       </div>
 
@@ -434,10 +447,10 @@ function MobileCard({ row, markets, isAdmin, onMerge, compact }: {
               return (
                 <div
                   key={m.id}
-                  className={"flex items-center gap-2 px-3 py-2 " + (isBest ? "bg-success/10" : "")}
+                  className={"grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2 " + (isBest ? "bg-success/10" : "")}
                 >
                   <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: m.logo_color }} />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{m.name}</span>
+                  <span className="min-w-0 truncate text-sm font-medium">{m.name}</span>
                   {price === null ? (
                     <span className="shrink-0 text-xs text-muted-foreground">sem oferta</span>
                   ) : (
