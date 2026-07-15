@@ -111,11 +111,10 @@ function Index() {
     if (!mergeTarget) return;
     setMerging(true);
     try {
-      const { error } = await supabase.rpc("admin_merge_products", {
-        _source_key: source.product_key,
-        _target_key: mergeTarget.product_key,
+      const { adminMergeProducts } = await import("@/lib/admin-merge-products.functions");
+      await adminMergeProducts({
+        data: { source_key: source.product_key, target_key: mergeTarget.product_key },
       });
-      if (error) throw error;
       toast.success(`"${source.name}" unido a "${mergeTarget.name}".`);
       setMergeTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["flyer_products"] });
