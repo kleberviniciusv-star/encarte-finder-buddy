@@ -84,7 +84,13 @@ function Index() {
     setRefreshing(true);
     toast.info("Lendo os encartes com IA… isso leva ~1 minuto.");
     try {
-      const res = await fetch("/api/public/hooks/refresh-flyers", { method: "POST" });
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("Faça login como admin para atualizar.");
+      const res = await fetch("/api/public/hooks/refresh-flyers", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Falha");
       const total = (data.results ?? []).reduce((a: number, r: { products?: number }) => a + (r.products ?? 0), 0);
