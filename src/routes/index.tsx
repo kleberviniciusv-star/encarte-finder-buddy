@@ -84,7 +84,13 @@ function Index() {
     setRefreshing(true);
     toast.info("Lendo os encartes com IA… isso leva ~1 minuto.");
     try {
-      const res = await fetch("/api/public/hooks/refresh-flyers", { method: "POST" });
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
+      if (!token) throw new Error("Faça login como admin para atualizar.");
+      const res = await fetch("/api/public/hooks/refresh-flyers", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "Falha");
       const total = (data.results ?? []).reduce((a: number, r: { products?: number }) => a + (r.products ?? 0), 0);
@@ -105,11 +111,10 @@ function Index() {
     if (!mergeTarget) return;
     setMerging(true);
     try {
-      const { error } = await supabase.rpc("admin_merge_products", {
-        _source_key: source.product_key,
-        _target_key: mergeTarget.product_key,
+      const { adminMergeProducts } = await import("@/lib/admin-merge-products.functions");
+      await adminMergeProducts({
+        data: { source_key: source.product_key, target_key: mergeTarget.product_key },
       });
-      if (error) throw error;
       toast.success(`"${source.name}" unido a "${mergeTarget.name}".`);
       setMergeTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["flyer_products"] });

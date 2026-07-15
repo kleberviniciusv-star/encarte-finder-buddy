@@ -196,10 +196,47 @@ async function refreshMarket(market: {
   };
 }
 
+async function assertAdmin(request: Request): Promise<Response | null> {
+  const authHeader = request.headers.get("authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+  const token = authHeader.slice("Bearer ".length).trim();
+  if (!token || token.split(".").length !== 3) {
+    return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+  const SUPABASE_URL = process.env.SUPABASE_URL;
+  const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+  if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+    return Response.json({ success: false, error: "Server misconfigured" }, { status: 500 });
+  }
+  const { createClient } = await import("@supabase/supabase-js");
+  const sb = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+  });
+  const { data: claims, error: claimsErr } = await sb.auth.getClaims(token);
+  if (claimsErr || !claims?.claims?.sub) {
+    return Response.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+  const { data: roleRow } = await sb
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", claims.claims.sub)
+    .eq("role", "admin")
+    .maybeSingle();
+  if (!roleRow) {
+    return Response.json({ success: false, error: "Forbidden" }, { status: 403 });
+  }
+  return null;
+}
+
 export const Route = createFileRoute("/api/public/hooks/refresh-flyers")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const denied = await assertAdmin(request);
+        if (denied) return denied;
         try {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { data: markets, error } = await supabaseAdmin
@@ -238,8 +275,9 @@ export const Route = createFileRoute("/api/public/hooks/refresh-flyers")({
       },
       GET: async () =>
         Response.json({
-          info: "POST para atualizar encartes (Juzan + Gomes via OCR Gemini Vision).",
+          info: "POST (admin bearer) para atualizar encartes.",
         }),
     },
   },
 });
+
