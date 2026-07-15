@@ -56,9 +56,15 @@ async function listFlyerImages(market: { slug: string; flyer_url: string }): Pro
       ) {
         found.add(url);
       }
-    } else if (market.slug === "rede-supermarket") {
-      // Rede publishes a PDF guide: guia-MM-MM.pdf
-      if (/\/guia-\d{2}-\d{2}\.pdf$/i.test(lower)) found.add(url);
+    } else if (market.slug === "esperanca") {
+      if (
+        lower.includes("/wa_images/") &&
+        /esperanca[^/]*\.(jpe?g|png|webp)$/.test(lower) &&
+        !lower.includes("logo") &&
+        !lower.includes("icone")
+      ) {
+        found.add(url);
+      }
     } else {
       if (lower.match(/encarte|flyer|oferta/)) found.add(url);
     }
